@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Harvard Reference Tracker (Enhanced + Libraries)</title>
+  <title>Harvard Reference Tracker</title>
   <style>
     :root { --bg:#0b0f17; --card:#121a26; --muted:#93a4be; --text:#e9eef7; --line:#223049; }
     *{box-sizing:border-box}
@@ -11,8 +11,8 @@
     header{padding:18px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,23,.9);backdrop-filter: blur(10px);z-index:10}
     header h1{margin:0;font-size:18px}
     header p{margin:6px 0 0;color:var(--muted);font-size:13px}
-    main{max-width:1250px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns: 460px 1fr}
-    @media (max-width: 1050px){ main{grid-template-columns:1fr} }
+    main{max-width:1250px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns: 480px 1fr}
+    @media (max-width: 1100px){ main{grid-template-columns:1fr} }
 
     .card{background:rgba(18,26,38,.9);border:1px solid var(--line);border-radius:16px;padding:14px}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -36,8 +36,11 @@
       background:#0a1220;border:1px dashed #2a3b59;border-radius:12px;padding:10px 12px;
       font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap
     }
-    .topline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .topline{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
     .muted{color:var(--muted);font-size:12px}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .divider{height:1px;background:var(--line);margin:12px 0}
+
     .list{display:grid;gap:10px;margin-top:10px}
     .item{padding:12px;border:1px solid var(--line);border-radius:14px;background:#0c1422}
     .item h3{margin:0;font-size:14px}
@@ -45,30 +48,35 @@
     .item .refs{margin-top:10px;display:grid;gap:8px}
     .smallbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .smallbtns button{padding:8px 10px;font-size:12px}
+
     .split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     @media (max-width: 740px){ .split{grid-template-columns:1fr} }
-    .hint{font-size:12px;color:var(--muted);margin-top:6px}
-    .divider{height:1px;background:var(--line);margin:12px 0}
+
     .toggleRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
     .toggleRow input[type="checkbox"]{width:auto;transform:scale(1.05)}
+
     .authorsWrap{display:grid;gap:8px}
     .authorLine{display:grid;grid-template-columns: 1fr 140px 44px; gap:8px; align-items:center}
     .authorLine button{padding:8px 0}
+
     .tabbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .tab{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:#0c1422;cursor:pointer;font-size:12px;color:var(--muted)}
     .tab.active{background:#152748;color:#e9eef7;border-color:#27457f}
     .panel{display:none}
     .panel.active{display:block}
+
     .selectRow{display:grid;grid-template-columns: 22px 1fr; gap:10px; align-items:flex-start}
+
     .libbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .libbar select{padding:8px 10px;border-radius:999px}
     .libbar button{padding:8px 10px;font-size:12px}
   </style>
 </head>
+
 <body>
 <header>
-  <h1>Harvard Reference Tracker (Enhanced + Libraries)</h1>
-  <p>Separate libraries per person (no overwriting). Saved locally in your browser.</p>
+  <h1>Harvard Reference Tracker</h1>
+  <p>Paste a link → auto-fill → edit → save. Separate libraries for friends. Works on GitHub Pages.</p>
 </header>
 
 <main>
@@ -77,10 +85,19 @@
     <div class="topline">
       <div>
         <div class="pill" id="modePill">Mode: Add</div>
-        <div class="hint">Category → authors → details → Generate → Save.</div>
+        <div class="hint">Paste link to auto-fill (optional) → Generate → Save.</div>
       </div>
-      <button id="newBtn">New</button>
+      <button id="newBtn" type="button">New</button>
     </div>
+
+    <label>Paste link to auto-fill</label>
+    <div class="row">
+      <input id="urlAutofill" placeholder="https://..." />
+      <button id="autoFillBtn" class="primary" type="button">Auto-fill</button>
+    </div>
+    <div class="hint" id="autoFillStatus">Tip: Some sites block auto-fill. If it fails, fill manually.</div>
+
+    <div class="divider"></div>
 
     <label>Category</label>
     <select id="category">
@@ -100,7 +117,7 @@
         <input type="checkbox" id="secondaryToggle" />
         Secondary citation (I didn’t read the original)
       </label>
-      <span class="hint">Outputs: (Original, Year, cited by Source, Year).</span>
+      <span class="hint">Outputs: (Original, Year, cited by Source, Year)</span>
     </div>
 
     <div id="secondaryBox" style="display:none">
@@ -114,16 +131,15 @@
           <input id="origYear" placeholder="e.g., 2017" />
         </div>
       </div>
-      <div class="hint">Fill the main fields below for the source you actually read.</div>
       <div class="divider"></div>
     </div>
 
     <label>Authors (add multiple)</label>
     <div class="authorsWrap" id="authorsWrap"></div>
     <div class="btnbar" style="margin-top:8px">
-      <button id="addAuthorBtn">+ Add author</button>
-      <button id="setOrgBtn">Use as organisation</button>
-      <span class="hint">For organisations: put the full name as the only “author”.</span>
+      <button id="addAuthorBtn" type="button">+ Add author</button>
+      <button id="setOrgBtn" type="button">Use as organisation</button>
+      <span class="hint">For organisations: put one author (e.g., NICE / NHS / NMC) with no initials.</span>
     </div>
 
     <div class="row3">
@@ -206,10 +222,10 @@
     <textarea id="notes" placeholder="Why you used it, key points, etc."></textarea>
 
     <div class="btnbar">
-      <button class="primary" id="generateBtn">Generate</button>
-      <button class="primary" id="saveBtn" disabled>Save</button>
-      <button id="copyInTextBtn" disabled>Copy in-text</button>
-      <button id="copyRefBtn" disabled>Copy reference</button>
+      <button class="primary" id="generateBtn" type="button">Generate</button>
+      <button class="primary" id="saveBtn" type="button" disabled>Save</button>
+      <button id="copyInTextBtn" type="button" disabled>Copy in-text</button>
+      <button id="copyRefBtn" type="button" disabled>Copy reference</button>
     </div>
 
     <label>Generated in-text citation</label>
@@ -218,10 +234,10 @@
     <label>Generated reference list entry</label>
     <div class="out" id="outRef">—</div>
 
-    <div class="hint">a/b/c is assigned inside your current Library (same authors + same year).</div>
+    <div class="hint">Auto a/b/c applies within your current library (same authors + same year).</div>
   </section>
 
-  <!-- RIGHT: LIBRARY + BUILDERS -->
+  <!-- RIGHT: LIBRARY -->
   <section class="card">
     <div class="topline">
       <div>
@@ -229,17 +245,16 @@
         <div class="muted" id="countText">0 saved</div>
       </div>
 
-      <!-- LIBRARY SWITCHER -->
       <div class="libbar">
         <select id="librarySelect" title="Choose a library"></select>
-        <button id="newLibraryBtn">New library</button>
-        <button class="danger" id="deleteLibraryBtn" title="Deletes the selected library">Delete</button>
+        <button id="newLibraryBtn" type="button">New library</button>
+        <button class="danger" id="deleteLibraryBtn" type="button" title="Deletes selected library">Delete</button>
       </div>
     </div>
 
     <div class="btnbar" style="margin-top:10px">
-      <button id="exportBtn">Export CSV</button>
-      <button class="danger" id="clearBtn">Clear current library</button>
+      <button id="exportBtn" type="button">Export CSV</button>
+      <button class="danger" id="clearBtn" type="button">Clear current library</button>
     </div>
 
     <div class="tabbar">
@@ -248,7 +263,6 @@
       <div class="tab" data-tab="bib">Reference list view</div>
     </div>
 
-    <!-- PANEL: LIBRARY -->
     <div class="panel active" id="panel-library">
       <div class="split">
         <div>
@@ -274,7 +288,6 @@
       <div class="list" id="list"></div>
     </div>
 
-    <!-- PANEL: MULTI-CITATION BUILDER -->
     <div class="panel" id="panel-multi">
       <div class="hint">Tick sources → outputs one bracket like (Author, 2018; Author, 2020a; Author, 2020b)</div>
       <div class="divider"></div>
@@ -282,22 +295,21 @@
 
       <div class="divider"></div>
       <div class="btnbar">
-        <button class="primary" id="buildMultiBtn">Build combined in-text</button>
-        <button id="copyMultiBtn" disabled>Copy combined in-text</button>
-        <button id="clearMultiSelectionBtn">Clear selection</button>
+        <button class="primary" id="buildMultiBtn" type="button">Build combined in-text</button>
+        <button id="copyMultiBtn" type="button" disabled>Copy combined in-text</button>
+        <button id="clearMultiSelectionBtn" type="button">Clear selection</button>
       </div>
 
       <label>Combined in-text citation</label>
       <div class="out" id="outMulti">—</div>
     </div>
 
-    <!-- PANEL: BIBLIOGRAPHY VIEW -->
     <div class="panel" id="panel-bib">
       <div class="hint">Final reference list view (auto-sorted alphabetically).</div>
       <div class="divider"></div>
       <div class="btnbar">
-        <button class="primary" id="copyBibBtn">Copy full reference list</button>
-        <button id="exportBibTxtBtn">Export .txt</button>
+        <button class="primary" id="copyBibBtn" type="button">Copy full reference list</button>
+        <button id="exportBibTxtBtn" type="button">Export .txt</button>
       </div>
       <label>Reference list</label>
       <div class="out" id="outBib">—</div>
@@ -306,65 +318,69 @@
 </main>
 
 <script>
-  // ---------------- Libraries (separate storage keys) ----------------
-  const KEY_PREFIX = "harvard_reference_tracker_v2_lib_";
-  const LIBNAME_KEY = "harvard_reference_tracker_v2_current_lib";
-  const LIBLIST_KEY = "harvard_reference_tracker_v2_lib_list";
+  // ===================== Libraries =====================
+  const KEY_PREFIX = "harvard_ref_tool_lib_";
+  const LIBNAME_KEY = "harvard_ref_tool_current_lib";
+  const LIBLIST_KEY = "harvard_ref_tool_lib_list";
 
   function sanitizeLibName(name){
     const n = String(name || "").trim();
-    // Keep it friendly but safe as a key
     return n.replace(/[^a-zA-Z0-9 _-]/g, "").trim().slice(0, 40);
   }
-
   function getLibList(){
     try { return JSON.parse(localStorage.getItem(LIBLIST_KEY)) || []; }
     catch { return []; }
   }
-
   function setLibList(list){
     localStorage.setItem(LIBLIST_KEY, JSON.stringify(list));
   }
-
   function getCurrentLib(){
     const cur = sanitizeLibName(localStorage.getItem(LIBNAME_KEY));
-    if(cur) return cur;
-    return "";
+    return cur || "";
   }
-
   function setCurrentLib(name){
     localStorage.setItem(LIBNAME_KEY, sanitizeLibName(name));
   }
-
   function storageKey(){
     return KEY_PREFIX + getCurrentLib();
   }
-
   function ensureLibraryExists(){
     let libs = getLibList().map(sanitizeLibName).filter(Boolean);
-
     let cur = getCurrentLib();
+
     if(!cur){
       cur = sanitizeLibName(prompt("Name your Library (e.g., Angel, Sam, Placement refs):", "Angel") || "My Library") || "My Library";
       setCurrentLib(cur);
     }
-
     if(!libs.includes(cur)){
       libs.push(cur);
       setLibList(libs);
     }
-
+    if(!libs.length){
+      libs = [cur];
+      setLibList(libs);
+    }
     return cur;
   }
 
-  // ---------------- Storage ----------------
+  // ===================== Storage =====================
   const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
-
   function loadAll(){ try { return JSON.parse(localStorage.getItem(storageKey())) || []; } catch { return []; } }
   function saveAll(items){ localStorage.setItem(storageKey(), JSON.stringify(items)); }
 
-  // ---------------- DOM helpers ----------------
+  // ===================== DOM helpers =====================
   const el = (id)=>document.getElementById(id);
+  function safe(s){ return (s||"").trim(); }
+  function escapeHtml(s){
+    return (s||"").replace(/[&<>"']/g, (c)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+  function accessedStr(d,m,y){
+    const dd = safe(d), mm=safe(m), yy=safe(y);
+    if(!dd && !mm && !yy) return "";
+    return `[Accessed ${dd||"??"} ${mm||"??"}${yy ? ", " + yy : ""}.]`;
+  }
 
   const fields = {
     id: null,
@@ -385,7 +401,6 @@
     doi: el("doi"),
     url: el("url"),
     notes: el("notes"),
-
     secondary: el("secondaryToggle"),
     origAuthor: el("origAuthor"),
     origYear: el("origYear"),
@@ -398,25 +413,10 @@
   const copyInTextBtn = el("copyInTextBtn");
   const copyRefBtn = el("copyRefBtn");
 
+  // ===================== Authors =====================
   const authorsWrap = el("authorsWrap");
   let authorsState = []; // [{name:"Smith", initials:"J."}, ...]
 
-  // ---------------- Utils ----------------
-  function safe(s){ return (s||"").trim(); }
-
-  function escapeHtml(s){
-    return (s||"").replace(/[&<>"']/g, (c)=>({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-    }[c]));
-  }
-
-  function accessedStr(d,m,y){
-    const dd = safe(d), mm=safe(m), yy=safe(y);
-    if(!dd && !mm && !yy) return "";
-    return `[Accessed ${dd||"??"} ${mm||"??"}${yy ? ", " + yy : ""}.]`;
-  }
-
-  // ---------------- Author formatting ----------------
   function formatAuthorsReference(authors){
     const cleaned = (authors||[]).map(a=>({name:safe(a.name), initials:safe(a.initials)})).filter(a=>a.name);
     if(cleaned.length === 0) return "Unknown";
@@ -436,19 +436,63 @@
 
   function authorsKey(authors){
     const cleaned = (authors||[]).map(a=>safe(a.name).toLowerCase()).filter(Boolean);
-    if(cleaned.length === 0) return "unknown";
-    return cleaned.join("|");
+    return cleaned.length ? cleaned.join("|") : "unknown";
   }
 
+  function renderAuthors(){
+    authorsWrap.innerHTML = "";
+    if(authorsState.length === 0) authorsState = [{name:"", initials:""}];
+
+    authorsState.forEach((a, idx)=>{
+      const line = document.createElement("div");
+      line.className = "authorLine";
+      line.innerHTML = `
+        <input data-a="name" data-idx="${idx}" placeholder="Surname / Organisation (e.g., Smith / NICE)" value="${escapeHtml(a.name)}" />
+        <input data-a="initials" data-idx="${idx}" placeholder="Initials (e.g., J.)" value="${escapeHtml(a.initials)}" />
+        <button title="Remove" data-act="rm" data-idx="${idx}">✕</button>
+      `;
+      authorsWrap.appendChild(line);
+    });
+
+    authorsWrap.querySelectorAll("input[data-a]").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx = Number(inp.getAttribute("data-idx"));
+        const key = inp.getAttribute("data-a");
+        authorsState[idx][key] = inp.value;
+      });
+    });
+
+    authorsWrap.querySelectorAll("button[data-act='rm']").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const idx = Number(btn.getAttribute("data-idx"));
+        authorsState.splice(idx,1);
+        if(authorsState.length === 0) authorsState = [{name:"", initials:""}];
+        renderAuthors();
+      });
+    });
+  }
+
+  el("addAuthorBtn").addEventListener("click", ()=>{
+    authorsState.push({name:"", initials:""});
+    renderAuthors();
+  });
+
+  el("setOrgBtn").addEventListener("click", ()=>{
+    const org = safe(authorsState[0]?.name) || "";
+    authorsState = [{name: org, initials: ""}];
+    renderAuthors();
+  });
+
+  // ===================== a/b/c suffix =====================
   function computeYearSuffix(currentId, authors, year){
     const y = safe(year) || "no date";
     if(!/^\d{4}$/.test(y)) return "";
-    const key = authorsKey(authors);
 
+    const key = authorsKey(authors);
     const items = loadAll()
-      .filter(x => (x.id !== currentId))
-      .filter(x => (safe(x.year) === y))
-      .filter(x => (authorsKey(x.authors) === key));
+      .filter(x => x.id !== currentId)
+      .filter(x => safe(x.year) === y)
+      .filter(x => authorsKey(x.authors) === key);
 
     const used = new Set();
     for(const it of items){
@@ -468,7 +512,7 @@
     return "";
   }
 
-  // ---------------- Citation builders ----------------
+  // ===================== Build in-text + reference =====================
   function buildInText(f){
     const year = (safe(f.year) || "no date") + (safe(f.yearSuffix) ? f.yearSuffix : "");
     const page = safe(f.page);
@@ -480,7 +524,6 @@
       const core = `(${oa}, ${oy}, cited by ${who}, ${year})`;
       return page ? core.replace(/\)$/, `, ${page})`) : core;
     }
-
     return page ? `(${who}, ${year}, ${page})` : `(${who}, ${year})`;
   }
 
@@ -512,9 +555,7 @@
     if(cat === "book"){
       let s = `${authorsRef} (${year}), ${title || "Untitled"}.`;
       if(edition) s += ` ${edition}.`;
-      if(place || publisher){
-        s += ` ${place || "Place unknown"}: ${publisher || "Publisher unknown"}.`;
-      }
+      if(place || publisher) s += ` ${place || "Place unknown"}: ${publisher || "Publisher unknown"}.`;
       return s.replace(/\s+/g,' ').trim();
     }
 
@@ -574,53 +615,7 @@
     return s.replace(/\s+/g,' ').trim();
   }
 
-  // ---------------- Author UI ----------------
-  function renderAuthors(){
-    authorsWrap.innerHTML = "";
-    if(authorsState.length === 0){
-      authorsState = [{name:"", initials:""}];
-    }
-    authorsState.forEach((a, idx)=>{
-      const line = document.createElement("div");
-      line.className = "authorLine";
-      line.innerHTML = `
-        <input data-a="name" data-idx="${idx}" placeholder="Surname / Organisation (e.g., Smith / NHS)" value="${escapeHtml(a.name)}" />
-        <input data-a="initials" data-idx="${idx}" placeholder="Initials (e.g., J.)" value="${escapeHtml(a.initials)}" />
-        <button title="Remove" data-act="rm" data-idx="${idx}">✕</button>
-      `;
-      authorsWrap.appendChild(line);
-    });
-
-    authorsWrap.querySelectorAll("input[data-a]").forEach(inp=>{
-      inp.addEventListener("input", ()=>{
-        const idx = Number(inp.getAttribute("data-idx"));
-        const key = inp.getAttribute("data-a");
-        authorsState[idx][key] = inp.value;
-      });
-    });
-
-    authorsWrap.querySelectorAll("button[data-act='rm']").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        const idx = Number(btn.getAttribute("data-idx"));
-        authorsState.splice(idx,1);
-        if(authorsState.length === 0) authorsState = [{name:"", initials:""}];
-        renderAuthors();
-      });
-    });
-  }
-
-  el("addAuthorBtn").addEventListener("click", ()=>{
-    authorsState.push({name:"", initials:""});
-    renderAuthors();
-  });
-
-  el("setOrgBtn").addEventListener("click", ()=>{
-    const org = safe(authorsState[0]?.name) || "";
-    authorsState = [{name: org, initials: ""}];
-    renderAuthors();
-  });
-
-  // ---------------- Form snapshot / set ----------------
+  // ===================== Form snapshot / set =====================
   function snapshotForm(){
     const f = {};
     for(const k in fields){
@@ -659,12 +654,11 @@
     outRef.textContent = "—";
   }
 
-  // ---------------- Clipboard & downloads ----------------
+  // ===================== Clipboard / download =====================
   async function copyText(text){
     try { await navigator.clipboard.writeText(text); }
     catch { alert("Copy failed — your browser blocked clipboard. You can select and copy manually."); }
   }
-
   function download(filename, text, mime="text/plain;charset=utf-8"){
     const blob = new Blob([text], {type:mime});
     const a = document.createElement("a");
@@ -675,7 +669,7 @@
     a.remove();
   }
 
-  // ---------------- Generate outputs ----------------
+  // ===================== Generate / save =====================
   function buildOutputs(){
     const f = snapshotForm();
     outInText.textContent = buildInText(f);
@@ -691,6 +685,7 @@
     const items = loadAll();
     const f = snapshotForm();
     const now = new Date().toISOString();
+
     f.yearSuffix = computeYearSuffix(f.id, f.authors, f.year);
 
     if(!f.id){
@@ -717,38 +712,12 @@
 
   el("newBtn").addEventListener("click", ()=> setForm(null));
 
-  // ---------------- CSV Export ----------------
-  function toCSV(items){
-    const cols = [
-      "id","category","year","yearSuffix","secondary","origAuthor","origYear",
-      "authors","title","container","place","publisher","edition","volume","issue","pages","doi","url",
-      "accDay","accMonth","accYear","page","notes","createdAt"
-    ];
-    const esc = (v)=> `"${String(v??"").replace(/"/g,'""')}"`;
-    const lines = [cols.join(",")];
-    for(const it of items){
-      const row = {...it, authors: JSON.stringify(it.authors||[])};
-      lines.push(cols.map(c=>esc(row[c])).join(","));
-    }
-    return lines.join("\n");
-  }
-
-  el("exportBtn").addEventListener("click", ()=>{
-    const items = loadAll();
-    const csv = toCSV(items);
-    const stamp = new Date().toISOString().slice(0,10);
-    download(`references_${sanitizeLibName(getCurrentLib())}_${stamp}.csv`, csv, "text/csv;charset=utf-8");
+  // ===================== Secondary toggle =====================
+  fields.secondary.addEventListener("change", ()=>{
+    el("secondaryBox").style.display = fields.secondary.checked ? "block" : "none";
   });
 
-  el("clearBtn").addEventListener("click", ()=>{
-    if(confirm(`Clear ALL saved references in "${getCurrentLib()}"?`)){
-      localStorage.removeItem(storageKey());
-      setForm(null);
-      renderAllPanels();
-    }
-  });
-
-  // ---------------- Panels (tabs) ----------------
+  // ===================== Tabs =====================
   function setTab(name){
     document.querySelectorAll(".tab").forEach(t=>{
       t.classList.toggle("active", t.getAttribute("data-tab")===name);
@@ -756,12 +725,11 @@
     document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
     el(`panel-${name}`).classList.add("active");
   }
-
   document.querySelectorAll(".tab").forEach(t=>{
     t.addEventListener("click", ()=> setTab(t.getAttribute("data-tab")));
   });
 
-  // ---------------- Library rendering ----------------
+  // ===================== Library rendering =====================
   function humanCat(v){
     const map = {
       website:"Website", journal:"Journal", book:"Book", chapter:"Chapter",
@@ -825,10 +793,10 @@
           <div><div class="muted">Reference</div><div class="out">${escapeHtml(ref)}</div></div>
         </div>
         <div class="smallbtns">
-          <button data-act="copyIn" data-id="${item.id}">Copy in-text</button>
-          <button data-act="copyRef" data-id="${item.id}">Copy reference</button>
-          <button data-act="edit" data-id="${item.id}">Edit</button>
-          <button class="danger" data-act="del" data-id="${item.id}">Delete</button>
+          <button data-act="copyIn" data-id="${item.id}" type="button">Copy in-text</button>
+          <button data-act="copyRef" data-id="${item.id}" type="button">Copy reference</button>
+          <button data-act="edit" data-id="${item.id}" type="button">Edit</button>
+          <button class="danger" data-act="del" data-id="${item.id}" type="button">Delete</button>
         </div>
       `;
       list.appendChild(div);
@@ -859,7 +827,7 @@
     });
   }
 
-  // ---------------- Multi-citation builder ----------------
+  // ===================== Multi-citation builder =====================
   const multiSelected = new Set();
 
   function sortInTextEntries(entries){
@@ -952,7 +920,7 @@
     buildMulti();
   });
 
-  // ---------------- Bibliography view ----------------
+  // ===================== Bibliography view =====================
   function bibSortKey(it){
     const first = (it.authors && it.authors[0] && safe(it.authors[0].name)) ? safe(it.authors[0].name).toLowerCase() : "unknown";
     const year = (safe(it.year) || "no date") + (safe(it.yearSuffix) ? it.yearSuffix : "");
@@ -979,23 +947,42 @@
     download(`reference_list_${sanitizeLibName(getCurrentLib())}_${stamp}.txt`, el("outBib").textContent, "text/plain;charset=utf-8");
   });
 
-  // ---------------- Secondary toggle ----------------
-  fields.secondary.addEventListener("change", ()=>{
-    el("secondaryBox").style.display = fields.secondary.checked ? "block" : "none";
+  // ===================== Export / clear current library =====================
+  function toCSV(items){
+    const cols = [
+      "id","category","year","yearSuffix","secondary","origAuthor","origYear",
+      "authors","title","container","place","publisher","edition","volume","issue","pages","doi","url",
+      "accDay","accMonth","accYear","page","notes","createdAt"
+    ];
+    const esc = (v)=> `"${String(v??"").replace(/"/g,'""')}"`;
+    const lines = [cols.join(",")];
+    for(const it of items){
+      const row = {...it, authors: JSON.stringify(it.authors||[])};
+      lines.push(cols.map(c=>esc(row[c])).join(","));
+    }
+    return lines.join("\n");
+  }
+
+  el("exportBtn").addEventListener("click", ()=>{
+    const items = loadAll();
+    const csv = toCSV(items);
+    const stamp = new Date().toISOString().slice(0,10);
+    download(`references_${sanitizeLibName(getCurrentLib())}_${stamp}.csv`, csv, "text/csv;charset=utf-8");
   });
 
-  // ---------------- Search/filter events ----------------
+  el("clearBtn").addEventListener("click", ()=>{
+    if(confirm(`Clear ALL saved references in "${getCurrentLib()}"?`)){
+      localStorage.removeItem(storageKey());
+      setForm(null);
+      renderAllPanels();
+    }
+  });
+
+  // ===================== Search/filter events =====================
   el("search").addEventListener("input", renderLibrary);
   el("filterCat").addEventListener("change", renderLibrary);
 
-  // ---------------- Render all panels ----------------
-  function renderAllPanels(){
-    renderLibrary();
-    renderMulti();
-    renderBib();
-  }
-
-  // ---------------- Library selector UI ----------------
+  // ===================== Library selector UI =====================
   function refreshLibrarySelect(){
     const sel = el("librarySelect");
     const libs = getLibList().map(sanitizeLibName).filter(Boolean).sort((a,b)=>a.localeCompare(b));
@@ -1016,14 +1003,12 @@
     if(!n) return;
     setCurrentLib(n);
 
-    // ensure it’s in the list
     const libs = getLibList().map(sanitizeLibName).filter(Boolean);
     if(!libs.includes(n)){
       libs.push(n);
       setLibList(libs);
     }
 
-    // reset selections + form
     multiSelected.clear();
     setForm(null);
     refreshLibrarySelect();
@@ -1043,14 +1028,11 @@
     if(!cur) return;
     if(!confirm(`Delete the entire library "${cur}"? This cannot be undone.`)) return;
 
-    // delete its data
     localStorage.removeItem(KEY_PREFIX + cur);
 
-    // remove from list
     let libs = getLibList().map(sanitizeLibName).filter(Boolean).filter(x=>x!==cur);
     setLibList(libs);
 
-    // pick another library or make one
     const next = libs[0] || "My Library";
     setCurrentLib(next);
     if(!libs.length) setLibList([next]);
@@ -1061,12 +1043,276 @@
     renderAllPanels();
   });
 
-  // ---------------- First load ----------------
+  // ===================== Render all =====================
+  function renderAllPanels(){
+    renderLibrary();
+    renderMulti();
+    renderBib();
+  }
+
+  // ===================== URL AUTO-FILL =====================
+  function setStatus(msg){
+    const s = el("autoFillStatus");
+    if(s) s.textContent = msg;
+  }
+
+  function normaliseUrl(u){
+    let url = (u || "").trim();
+    if(!url) return "";
+    if(!/^https?:\/\//i.test(url)) url = "https://" + url;
+    return url;
+  }
+
+  function pickMeta(doc, selectors){
+    for(const sel of selectors){
+      const e = doc.querySelector(sel);
+      const v = e?.getAttribute("content") || e?.textContent || "";
+      if(v && v.trim()) return v.trim();
+    }
+    return "";
+  }
+
+  function extractYearFromDate(dateStr){
+    if(!dateStr) return "";
+    const m = String(dateStr).match(/(\d{4})/);
+    return m ? m[1] : "";
+  }
+
+  function bestTitleGuess(doc){
+    return (
+      pickMeta(doc, [
+        'meta[property="og:title"]',
+        'meta[name="twitter:title"]',
+        'meta[name="citation_title"]'
+      ]) ||
+      (doc.querySelector("title")?.textContent || "").trim()
+    );
+  }
+
+  function bestAuthorGuess(doc){
+    const author = pickMeta(doc, [
+      'meta[name="author"]',
+      'meta[property="author"]',
+      'meta[property="article:author"]',
+      'meta[name="parsely-author"]',
+      'meta[name="citation_author"]'
+    ]);
+    if(author) return author;
+
+    const org = pickMeta(doc, [
+      'meta[property="og:site_name"]',
+      'meta[name="application-name"]',
+      'meta[name="dc.publisher"]',
+      'meta[name="publisher"]'
+    ]);
+    return org;
+  }
+
+  function bestDateGuess(doc){
+    return pickMeta(doc, [
+      'meta[property="article:published_time"]',
+      'meta[name="date"]',
+      'meta[name="dc.date"]',
+      'meta[name="dc.date.issued"]',
+      'meta[name="DCTERMS.issued"]',
+      'meta[name="citation_publication_date"]',
+      'meta[name="citation_date"]'
+    ]);
+  }
+
+  function bestContainerGuess(doc){
+    return pickMeta(doc, [
+      'meta[property="og:site_name"]',
+      'meta[name="citation_journal_title"]',
+      'meta[name="citation_publisher"]',
+      'meta[name="publisher"]',
+      'meta[name="dc.publisher"]'
+    ]);
+  }
+
+  function bestDoiGuess(doc, url){
+    const doiMeta = pickMeta(doc, [
+      'meta[name="citation_doi"]',
+      'meta[name="dc.identifier"]',
+      'meta[name="DC.Identifier"]'
+    ]);
+    if(doiMeta && doiMeta.toLowerCase().includes("10.")) return doiMeta;
+
+    const m = String(url).match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
+    return m ? m[0] : "";
+  }
+
+  function inferCategoryFromUrl(url, doi){
+    const u = (url || "").toLowerCase();
+    if(doi || u.includes("doi.org") || u.includes("/doi/")) return "journal";
+    if(u.endsWith(".pdf") || u.includes("policy") || u.includes("guidance") || u.includes("report")) return "policy";
+    return "website";
+  }
+
+  function setAuthorsFromString(authorStr){
+    const s = (authorStr || "").trim();
+    if(!s) return;
+
+    const orgHint = /(nhs|university|college|department|ministry|government|council|organisation|organization|who|nice|nmc|cdc|pubmed|bmj|lancet)/i;
+    if(orgHint.test(s) || s.length > 45){
+      authorsState = [{ name: s, initials: "" }];
+      renderAuthors();
+      return;
+    }
+
+    const parts = s.split(/\s+and\s+|,|;/).map(x => x.trim()).filter(Boolean);
+    authorsState = parts.slice(0, 6).map(p => ({ name: p, initials: "" }));
+    renderAuthors();
+  }
+
+  async function fetchHtmlWithFallback(url){
+    // 1) direct (may fail due to CORS)
+    try{
+      const res = await fetch(url, { mode: "cors" });
+      if(res.ok){
+        const text = await res.text();
+        return { text, method: "direct" };
+      }
+    } catch(e){}
+
+    // 2) fallback proxy (often bypasses CORS)
+    try{
+      const prox = "https://r.jina.ai/http://" + url.replace(/^https?:\/\//i, "");
+      const res2 = await fetch(prox);
+      if(res2.ok){
+        const text2 = await res2.text();
+        return { text: text2, method: "proxy" };
+      }
+    } catch(e){}
+
+    throw new Error("blocked");
+  }
+
+  async function autoFillFromUrl(){
+    const raw = el("urlAutofill").value || "";
+    const url = normaliseUrl(raw);
+    if(!url){
+      setStatus("Paste a link first.");
+      return;
+    }
+
+    setStatus("Fetching metadata…");
+    el("autoFillBtn").disabled = true;
+
+    try{
+      const { text, method } = await fetchHtmlWithFallback(url);
+      const doc = new DOMParser().parseFromString(text, "text/html");
+
+      const title = bestTitleGuess(doc);
+      const author = bestAuthorGuess(doc);
+      const date = bestDateGuess(doc);
+      const year = extractYearFromDate(date);
+      const container = bestContainerGuess(doc);
+      const doi = bestDoiGuess(doc, url);
+
+      if(title) el("title").value = title;
+      if(container && !safe(el("container").value)) el("container").value = container;
+      if(doi) el("doi").value = doi;
+      if(year) el("year").value = year;
+
+      el("url").value = url;
+
+      if(author) setAuthorsFromString(author);
+
+      const cat = inferCategoryFromUrl(url, doi);
+      el("category").value = cat;
+
+      // Fill accessed date as today if blank
+      const d = new Date();
+      const day = String(d.getDate());
+      const month = d.toLocaleString("en-GB", { month: "short" });
+      const yr = String(d.getFullYear());
+      if(!safe(el("accDay").value)) el("accDay").value = day;
+      if(!safe(el("accMonth").value)) el("accMonth").value = month;
+      if(!safe(el("accYear").value)) el("accYear").value = yr;
+
+      setStatus(`Auto-filled (${method}). Check author + year, then Generate → Save.`);
+    } catch(err){
+      setStatus("Couldn’t auto-fill from that site (blocked). You can still paste the URL and fill manually.");
+    } finally{
+      el("autoFillBtn").disabled = false;
+    }
+  }
+
+  el("autoFillBtn").addEventListener("click", autoFillFromUrl);
+
+  // ===================== Init =====================
   (function init(){
     const current = ensureLibraryExists();
+    // authors UI
+    renderAuthors();
+    // initial form
+    setForm(null);
+
+    // library select
+    function refreshLibrarySelect(){
+      const sel = el("librarySelect");
+      const libs = getLibList().map(sanitizeLibName).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+      const cur = getCurrentLib();
+
+      sel.innerHTML = "";
+      for(const name of libs){
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        if(name === cur) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
     refreshLibrarySelect();
-    switchLibrary(current); // sets + renders
+
+    // switch library now
+    function switchLibrary(name){
+      const n = sanitizeLibName(name);
+      if(!n) return;
+      setCurrentLib(n);
+      const libs = getLibList().map(sanitizeLibName).filter(Boolean);
+      if(!libs.includes(n)){
+        libs.push(n);
+        setLibList(libs);
+      }
+      multiSelected.clear();
+      setForm(null);
+      refreshLibrarySelect();
+      renderAllPanels();
+    }
+
+    // wire select + buttons
+    el("librarySelect").addEventListener("change", (e)=> switchLibrary(e.target.value));
+    el("newLibraryBtn").addEventListener("click", ()=>{
+      const name = sanitizeLibName(prompt("New library name (e.g., Sam, Dissertation refs):", "") || "");
+      if(!name) return;
+      switchLibrary(name);
+    });
+    el("deleteLibraryBtn").addEventListener("click", ()=>{
+      const cur = getCurrentLib();
+      if(!cur) return;
+      if(!confirm(`Delete the entire library "${cur}"? This cannot be undone.`)) return;
+
+      localStorage.removeItem(KEY_PREFIX + cur);
+
+      let libs = getLibList().map(sanitizeLibName).filter(Boolean).filter(x=>x!==cur);
+      setLibList(libs);
+
+      const next = libs[0] || "My Library";
+      setCurrentLib(next);
+      if(!libs.length) setLibList([next]);
+
+      multiSelected.clear();
+      setForm(null);
+      refreshLibrarySelect();
+      renderAllPanels();
+    });
+
+    // set current library
+    switchLibrary(current);
   })();
 </script>
 </body>
 </html>
+
