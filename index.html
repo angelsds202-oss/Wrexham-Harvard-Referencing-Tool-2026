@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Harvard Reference Tracker (Enhanced + Libraries)</title>
+  <style>
+    :root { --bg:#0b0f17; --card:#121a26; --muted:#93a4be; --text:#e9eef7; --line:#223049; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#0b0f17,#070a10);color:var(--text)}
+    header{padding:18px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,23,.9);backdrop-filter: blur(10px);z-index:10}
+    header h1{margin:0;font-size:18px}
+    header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    main{max-width:1250px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns: 460px 1fr}
+    @media (max-width: 1050px){ main{grid-template-columns:1fr} }
+
+    .card{background:rgba(18,26,38,.9);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input,select,textarea{
+      width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);
+      background:#0c1422;color:var(--text);outline:none
+    }
+    textarea{min-height:74px;resize:vertical}
+    .btnbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{
+      padding:10px 12px;border-radius:12px;border:1px solid var(--line);
+      background:#0f1b2e;color:var(--text);cursor:pointer
+    }
+    button.primary{background:#1a2d55;border-color:#27457f}
+    button.danger{background:#2a1320;border-color:#5b1e3c}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:12px}
+    .out{
+      background:#0a1220;border:1px dashed #2a3b59;border-radius:12px;padding:10px 12px;
+      font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap
+    }
+    .topline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .muted{color:var(--muted);font-size:12px}
+    .list{display:grid;gap:10px;margin-top:10px}
+    .item{padding:12px;border:1px solid var(--line);border-radius:14px;background:#0c1422}
+    .item h3{margin:0;font-size:14px}
+    .item .meta{margin-top:6px;color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap}
+    .item .refs{margin-top:10px;display:grid;gap:8px}
+    .smallbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .smallbtns button{padding:8px 10px;font-size:12px}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width: 740px){ .split{grid-template-columns:1fr} }
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .divider{height:1px;background:var(--line);margin:12px 0}
+    .toggleRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .toggleRow input[type="checkbox"]{width:auto;transform:scale(1.05)}
+    .authorsWrap{display:grid;gap:8px}
+    .authorLine{display:grid;grid-template-columns: 1fr 140px 44px; gap:8px; align-items:center}
+    .authorLine button{padding:8px 0}
+    .tabbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .tab{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:#0c1422;cursor:pointer;font-size:12px;color:var(--muted)}
+    .tab.active{background:#152748;color:#e9eef7;border-color:#27457f}
+    .panel{display:none}
+    .panel.active{display:block}
+    .selectRow{display:grid;grid-template-columns: 22px 1fr; gap:10px; align-items:flex-start}
+    .libbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .libbar select{padding:8px 10px;border-radius:999px}
+    .libbar button{padding:8px 10px;font-size:12px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Harvard Reference Tracker (Enhanced + Libraries)</h1>
+  <p>Separate libraries per person (no overwriting). Saved locally in your browser.</p>
+</header>
+
+<main>
+  <!-- LEFT: FORM -->
+  <section class="card">
+    <div class="topline">
+      <div>
+        <div class="pill" id="modePill">Mode: Add</div>
+        <div class="hint">Category → authors → details → Generate → Save.</div>
+      </div>
+      <button id="newBtn">New</button>
+    </div>
+
+    <label>Category</label>
+    <select id="category">
+      <option value="website">Website / Webpage</option>
+      <option value="journal">Journal article</option>
+      <option value="book">Book</option>
+      <option value="chapter">Chapter in edited book</option>
+      <option value="policy">Policy / Report (online)</option>
+      <option value="lecture">Lecture / PowerPoint</option>
+      <option value="image">Image / Figure</option>
+      <option value="ai">ChatGPT / AI output</option>
+      <option value="other">Other (manual)</option>
+    </select>
+
+    <div class="toggleRow">
+      <label style="margin:0;display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="secondaryToggle" />
+        Secondary citation (I didn’t read the original)
+      </label>
+      <span class="hint">Outputs: (Original, Year, cited by Source, Year).</span>
+    </div>
+
+    <div id="secondaryBox" style="display:none">
+      <div class="row">
+        <div>
+          <label>Original author / organisation</label>
+          <input id="origAuthor" placeholder="e.g., Williams" />
+        </div>
+        <div>
+          <label>Original year</label>
+          <input id="origYear" placeholder="e.g., 2017" />
+        </div>
+      </div>
+      <div class="hint">Fill the main fields below for the source you actually read.</div>
+      <div class="divider"></div>
+    </div>
+
+    <label>Authors (add multiple)</label>
+    <div class="authorsWrap" id="authorsWrap"></div>
+    <div class="btnbar" style="margin-top:8px">
+      <button id="addAuthorBtn">+ Add author</button>
+      <button id="setOrgBtn">Use as organisation</button>
+      <span class="hint">For organisations: put the full name as the only “author”.</span>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>Year</label>
+        <input id="year" placeholder="e.g., 2024 or no date" />
+      </div>
+      <div>
+        <label>Accessed day</label>
+        <input id="accDay" placeholder="e.g., 17" />
+      </div>
+      <div>
+        <label>Accessed month</label>
+        <input id="accMonth" placeholder="e.g., Feb" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Accessed year</label>
+        <input id="accYear" placeholder="e.g., 2026" />
+      </div>
+      <div>
+        <label>Page (for quotes)</label>
+        <input id="page" placeholder="e.g., p.12" />
+      </div>
+    </div>
+
+    <label>Title</label>
+    <input id="title" placeholder="Exact page/article/book title" />
+
+    <div class="row">
+      <div>
+        <label>Container (journal/book/site/module)</label>
+        <input id="container" placeholder="e.g., BMJ / Pearson / NICE website / Module code" />
+      </div>
+      <div>
+        <label>Place (books)</label>
+        <input id="place" placeholder="e.g., London" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Publisher (books/reports)</label>
+        <input id="publisher" placeholder="e.g., NICE" />
+      </div>
+      <div>
+        <label>Edition (if not 1st)</label>
+        <input id="edition" placeholder="e.g., 3rd ed." />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Volume</label>
+        <input id="volume" placeholder="e.g., 12" />
+      </div>
+      <div>
+        <label>Issue</label>
+        <input id="issue" placeholder="e.g., 4" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Page range (articles/chapters)</label>
+        <input id="pages" placeholder="e.g., 101–109" />
+      </div>
+      <div>
+        <label>DOI (optional)</label>
+        <input id="doi" placeholder="e.g., 10.xxxx/xxxxx" />
+      </div>
+    </div>
+
+    <label>URL</label>
+    <input id="url" placeholder="https://..." />
+
+    <label>Notes</label>
+    <textarea id="notes" placeholder="Why you used it, key points, etc."></textarea>
+
+    <div class="btnbar">
+      <button class="primary" id="generateBtn">Generate</button>
+      <button class="primary" id="saveBtn" disabled>Save</button>
+      <button id="copyInTextBtn" disabled>Copy in-text</button>
+      <button id="copyRefBtn" disabled>Copy reference</button>
+    </div>
+
+    <label>Generated in-text citation</label>
+    <div class="out" id="outInText">—</div>
+
+    <label>Generated reference list entry</label>
+    <div class="out" id="outRef">—</div>
+
+    <div class="hint">a/b/c is assigned inside your current Library (same authors + same year).</div>
+  </section>
+
+  <!-- RIGHT: LIBRARY + BUILDERS -->
+  <section class="card">
+    <div class="topline">
+      <div>
+        <h2 style="margin:0;font-size:16px">Your library</h2>
+        <div class="muted" id="countText">0 saved</div>
+      </div>
+
+      <!-- LIBRARY SWITCHER -->
+      <div class="libbar">
+        <select id="librarySelect" title="Choose a library"></select>
+        <button id="newLibraryBtn">New library</button>
+        <button class="danger" id="deleteLibraryBtn" title="Deletes the selected library">Delete</button>
+      </div>
+    </div>
+
+    <div class="btnbar" style="margin-top:10px">
+      <button id="exportBtn">Export CSV</button>
+      <button class="danger" id="clearBtn">Clear current library</button>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab active" data-tab="library">Library</div>
+      <div class="tab" data-tab="multi">Multi-citation builder</div>
+      <div class="tab" data-tab="bib">Reference list view</div>
+    </div>
+
+    <!-- PANEL: LIBRARY -->
+    <div class="panel active" id="panel-library">
+      <div class="split">
+        <div>
+          <label>Search</label>
+          <input id="search" placeholder="Search by author, title, category..." />
+        </div>
+        <div>
+          <label>Filter category</label>
+          <select id="filterCat">
+            <option value="all">All</option>
+            <option value="website">Website / Webpage</option>
+            <option value="journal">Journal article</option>
+            <option value="book">Book</option>
+            <option value="chapter">Chapter</option>
+            <option value="policy">Policy / Report</option>
+            <option value="lecture">Lecture / PowerPoint</option>
+            <option value="image">Image / Figure</option>
+            <option value="ai">ChatGPT / AI</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="list" id="list"></div>
+    </div>
+
+    <!-- PANEL: MULTI-CITATION BUILDER -->
+    <div class="panel" id="panel-multi">
+      <div class="hint">Tick sources → outputs one bracket like (Author, 2018; Author, 2020a; Author, 2020b)</div>
+      <div class="divider"></div>
+      <div class="list" id="multiList"></div>
+
+      <div class="divider"></div>
+      <div class="btnbar">
+        <button class="primary" id="buildMultiBtn">Build combined in-text</button>
+        <button id="copyMultiBtn" disabled>Copy combined in-text</button>
+        <button id="clearMultiSelectionBtn">Clear selection</button>
+      </div>
+
+      <label>Combined in-text citation</label>
+      <div class="out" id="outMulti">—</div>
+    </div>
+
+    <!-- PANEL: BIBLIOGRAPHY VIEW -->
+    <div class="panel" id="panel-bib">
+      <div class="hint">Final reference list view (auto-sorted alphabetically).</div>
+      <div class="divider"></div>
+      <div class="btnbar">
+        <button class="primary" id="copyBibBtn">Copy full reference list</button>
+        <button id="exportBibTxtBtn">Export .txt</button>
+      </div>
+      <label>Reference list</label>
+      <div class="out" id="outBib">—</div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // ---------------- Libraries (separate storage keys) ----------------
+  const KEY_PREFIX = "harvard_reference_tracker_v2_lib_";
+  const LIBNAME_KEY = "harvard_reference_tracker_v2_current_lib";
+  const LIBLIST_KEY = "harvard_reference_tracker_v2_lib_list";
+
+  function sanitizeLibName(name){
+    const n = String(name || "").trim();
+    // Keep it friendly but safe as a key
+    return n.replace(/[^a-zA-Z0-9 _-]/g, "").trim().slice(0, 40);
+  }
+
+  function getLibList(){
+    try { return JSON.parse(localStorage.getItem(LIBLIST_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function setLibList(list){
+    localStorage.setItem(LIBLIST_KEY, JSON.stringify(list));
+  }
+
+  function getCurrentLib(){
+    const cur = sanitizeLibName(localStorage.getItem(LIBNAME_KEY));
+    if(cur) return cur;
+    return "";
+  }
+
+  function setCurrentLib(name){
+    localStorage.setItem(LIBNAME_KEY, sanitizeLibName(name));
+  }
+
+  function storageKey(){
+    return KEY_PREFIX + getCurrentLib();
+  }
+
+  function ensureLibraryExists(){
+    let libs = getLibList().map(sanitizeLibName).filter(Boolean);
+
+    let cur = getCurrentLib();
+    if(!cur){
+      cur = sanitizeLibName(prompt("Name your Library (e.g., Angel, Sam, Placement refs):", "Angel") || "My Library") || "My Library";
+      setCurrentLib(cur);
+    }
+
+    if(!libs.includes(cur)){
+      libs.push(cur);
+      setLibList(libs);
+    }
+
+    return cur;
+  }
+
+  // ---------------- Storage ----------------
+  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+
+  function loadAll(){ try { return JSON.parse(localStorage.getItem(storageKey())) || []; } catch { return []; } }
+  function saveAll(items){ localStorage.setItem(storageKey(), JSON.stringify(items)); }
+
+  // ---------------- DOM helpers ----------------
+  const el = (id)=>document.getElementById(id);
+
+  const fields = {
+    id: null,
+    category: el("category"),
+    year: el("year"),
+    accDay: el("accDay"),
+    accMonth: el("accMonth"),
+    accYear: el("accYear"),
+    page: el("page"),
+    title: el("title"),
+    container: el("container"),
+    place: el("place"),
+    publisher: el("publisher"),
+    edition: el("edition"),
+    volume: el("volume"),
+    issue: el("issue"),
+    pages: el("pages"),
+    doi: el("doi"),
+    url: el("url"),
+    notes: el("notes"),
+
+    secondary: el("secondaryToggle"),
+    origAuthor: el("origAuthor"),
+    origYear: el("origYear"),
+  };
+
+  const modePill = el("modePill");
+  const outInText = el("outInText");
+  const outRef = el("outRef");
+  const saveBtn = el("saveBtn");
+  const copyInTextBtn = el("copyInTextBtn");
+  const copyRefBtn = el("copyRefBtn");
+
+  const authorsWrap = el("authorsWrap");
+  let authorsState = []; // [{name:"Smith", initials:"J."}, ...]
+
+  // ---------------- Utils ----------------
+  function safe(s){ return (s||"").trim(); }
+
+  function escapeHtml(s){
+    return (s||"").replace(/[&<>"']/g, (c)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function accessedStr(d,m,y){
+    const dd = safe(d), mm=safe(m), yy=safe(y);
+    if(!dd && !mm && !yy) return "";
+    return `[Accessed ${dd||"??"} ${mm||"??"}${yy ? ", " + yy : ""}.]`;
+  }
+
+  // ---------------- Author formatting ----------------
+  function formatAuthorsReference(authors){
+    const cleaned = (authors||[]).map(a=>({name:safe(a.name), initials:safe(a.initials)})).filter(a=>a.name);
+    if(cleaned.length === 0) return "Unknown";
+    const as = cleaned.map(a => a.initials ? `${a.name}, ${a.initials}` : a.name);
+    if(as.length === 1) return as[0];
+    if(as.length === 2) return `${as[0]} and ${as[1]}`;
+    return `${as.slice(0,-1).join(", ")} and ${as[as.length-1]}`;
+  }
+
+  function formatAuthorsInText(authors){
+    const cleaned = (authors||[]).map(a=>safe(a.name)).filter(Boolean);
+    if(cleaned.length === 0) return "Unknown";
+    if(cleaned.length === 1) return cleaned[0];
+    if(cleaned.length === 2) return `${cleaned[0]} and ${cleaned[1]}`;
+    return `${cleaned[0]} et al.`;
+  }
+
+  function authorsKey(authors){
+    const cleaned = (authors||[]).map(a=>safe(a.name).toLowerCase()).filter(Boolean);
+    if(cleaned.length === 0) return "unknown";
+    return cleaned.join("|");
+  }
+
+  function computeYearSuffix(currentId, authors, year){
+    const y = safe(year) || "no date";
+    if(!/^\d{4}$/.test(y)) return "";
+    const key = authorsKey(authors);
+
+    const items = loadAll()
+      .filter(x => (x.id !== currentId))
+      .filter(x => (safe(x.year) === y))
+      .filter(x => (authorsKey(x.authors) === key));
+
+    const used = new Set();
+    for(const it of items){
+      const s = safe(it.yearSuffix);
+      if(s) used.add(s);
+    }
+
+    const current = currentId ? loadAll().find(x=>x.id===currentId) : null;
+    if(current && authorsKey(current.authors)===key && safe(current.year)===y && safe(current.yearSuffix)){
+      return safe(current.yearSuffix);
+    }
+
+    const letters = "abcdefghijklmnopqrstuvwxyz".split("");
+    for(const l of letters){
+      if(!used.has(l)) return l;
+    }
+    return "";
+  }
+
+  // ---------------- Citation builders ----------------
+  function buildInText(f){
+    const year = (safe(f.year) || "no date") + (safe(f.yearSuffix) ? f.yearSuffix : "");
+    const page = safe(f.page);
+    const who = formatAuthorsInText(f.authors);
+
+    if(f.secondary){
+      const oa = safe(f.origAuthor) || "Unknown";
+      const oy = safe(f.origYear) || "no date";
+      const core = `(${oa}, ${oy}, cited by ${who}, ${year})`;
+      return page ? core.replace(/\)$/, `, ${page})`) : core;
+    }
+
+    return page ? `(${who}, ${year}, ${page})` : `(${who}, ${year})`;
+  }
+
+  function formatReference(f){
+    const cat = f.category;
+    const authorsRef = formatAuthorsReference(f.authors);
+    const yearCore = safe(f.year) || "no date";
+    const year = yearCore + (safe(f.yearSuffix) ? f.yearSuffix : "");
+    const title = safe(f.title);
+    const container = safe(f.container);
+    const place = safe(f.place);
+    const publisher = safe(f.publisher);
+    const edition = safe(f.edition);
+    const volume = safe(f.volume);
+    const issue = safe(f.issue);
+    const pages = safe(f.pages);
+    const doi = safe(f.doi);
+    const url = safe(f.url);
+    const acc = accessedStr(f.accDay, f.accMonth, f.accYear);
+
+    if(cat === "other"){
+      let base = `${authorsRef} (${year}), ${title || "Untitled"}.`;
+      if(container) base += ` ${container}.`;
+      if(url) base += ` Available from: ${url}.`;
+      if(acc) base += ` ${acc}`;
+      return base.replace(/\s+/g,' ').trim();
+    }
+
+    if(cat === "book"){
+      let s = `${authorsRef} (${year}), ${title || "Untitled"}.`;
+      if(edition) s += ` ${edition}.`;
+      if(place || publisher){
+        s += ` ${place || "Place unknown"}: ${publisher || "Publisher unknown"}.`;
+      }
+      return s.replace(/\s+/g,' ').trim();
+    }
+
+    if(cat === "chapter"){
+      let s = `${authorsRef} (${year}), ‘${title || "Untitled chapter"}’ in ${container || "Edited book"}.`;
+      if(edition) s += ` ${edition}.`;
+      if(place || publisher) s += ` ${place || "Place unknown"}: ${publisher || "Publisher unknown"}.`;
+      if(pages) s += ` pp. ${pages}.`;
+      return s.replace(/\s+/g,' ').trim();
+    }
+
+    if(cat === "journal"){
+      let s = `${authorsRef} (${year}), ‘${title || "Untitled article"}’, ${container || "Journal title"}.`;
+      if(volume) s += ` Vol.${volume}.`;
+      if(issue) s += ` No.${issue}.`;
+      if(pages) s += ` pp. ${pages}.`;
+      if(doi) s += ` DOI: ${doi}.`;
+      else if(url) s += ` Available from: ${url}.`;
+      if(acc && (url && !doi)) s += ` ${acc}`;
+      return s.replace(/\s+/g,' ').trim();
+    }
+
+    if(cat === "website" || cat === "policy"){
+      let s = `${authorsRef} (${year}), ${title || "Untitled"}.`;
+      if(url) s += ` Available from: ${url}.`;
+      if(acc) s += ` ${acc}`;
+      return s.replace(/\s+/g,' ').trim();
+    }
+
+    if(cat === "lecture"){
+      let s = `${authorsRef} (${year}), ‘${title || "Untitled"}’ [Lecture/PowerPoint].`;
+      if(container) s += ` ${container}.`;
+      if(url) s += ` Available from: ${url}.`;
+      if(acc) s += ` ${acc}`;
+      return s.replace(/\s+/g,' ').trim();
+    }
+
+    if(cat === "image"){
+      let s = `${authorsRef} (${year}), ${title || "Untitled"} [Image].`;
+      if(url) s += ` Available from: ${url}.`;
+      if(acc) s += ` ${acc}`;
+      return s.replace(/\s+/g,' ').trim();
+    }
+
+    if(cat === "ai"){
+      const day = safe(f.accDay) || "??";
+      const month = safe(f.accMonth) || "??";
+      let s = `${authorsRef} (${yearCore}), ChatGPT response to user`;
+      if(title) s += `: ${title}`;
+      s += `, (personal communication, ${day} ${month}).`;
+      return s.replace(/\s+/g,' ').trim();
+    }
+
+    let s = `${authorsRef} (${year}), ${title || "Untitled"}.`;
+    if(url) s += ` Available from: ${url}.`;
+    if(acc) s += ` ${acc}`;
+    return s.replace(/\s+/g,' ').trim();
+  }
+
+  // ---------------- Author UI ----------------
+  function renderAuthors(){
+    authorsWrap.innerHTML = "";
+    if(authorsState.length === 0){
+      authorsState = [{name:"", initials:""}];
+    }
+    authorsState.forEach((a, idx)=>{
+      const line = document.createElement("div");
+      line.className = "authorLine";
+      line.innerHTML = `
+        <input data-a="name" data-idx="${idx}" placeholder="Surname / Organisation (e.g., Smith / NHS)" value="${escapeHtml(a.name)}" />
+        <input data-a="initials" data-idx="${idx}" placeholder="Initials (e.g., J.)" value="${escapeHtml(a.initials)}" />
+        <button title="Remove" data-act="rm" data-idx="${idx}">✕</button>
+      `;
+      authorsWrap.appendChild(line);
+    });
+
+    authorsWrap.querySelectorAll("input[data-a]").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx = Number(inp.getAttribute("data-idx"));
+        const key = inp.getAttribute("data-a");
+        authorsState[idx][key] = inp.value;
+      });
+    });
+
+    authorsWrap.querySelectorAll("button[data-act='rm']").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const idx = Number(btn.getAttribute("data-idx"));
+        authorsState.splice(idx,1);
+        if(authorsState.length === 0) authorsState = [{name:"", initials:""}];
+        renderAuthors();
+      });
+    });
+  }
+
+  el("addAuthorBtn").addEventListener("click", ()=>{
+    authorsState.push({name:"", initials:""});
+    renderAuthors();
+  });
+
+  el("setOrgBtn").addEventListener("click", ()=>{
+    const org = safe(authorsState[0]?.name) || "";
+    authorsState = [{name: org, initials: ""}];
+    renderAuthors();
+  });
+
+  // ---------------- Form snapshot / set ----------------
+  function snapshotForm(){
+    const f = {};
+    for(const k in fields){
+      if(k==="id") continue;
+      if(k==="secondary") continue;
+      f[k] = fields[k].value;
+    }
+    f.id = fields.id;
+    f.secondary = !!fields.secondary.checked;
+    f.authors = (authorsState||[]).map(a=>({name:a.name, initials:a.initials}));
+    f.createdAt = f.createdAt || new Date().toISOString();
+    f.yearSuffix = computeYearSuffix(f.id, f.authors, f.year);
+    return f;
+  }
+
+  function setForm(data){
+    fields.id = data?.id || null;
+    for(const k in fields){
+      if(k==="id") continue;
+      if(k==="secondary") continue;
+      fields[k].value = data?.[k] ?? "";
+    }
+    fields.secondary.checked = !!data?.secondary;
+    el("secondaryBox").style.display = fields.secondary.checked ? "block" : "none";
+
+    authorsState = (data?.authors && data.authors.length)
+      ? data.authors.map(a=>({name:a.name||"", initials:a.initials||""}))
+      : [{name:"", initials:""}];
+    renderAuthors();
+
+    modePill.textContent = fields.id ? "Mode: Edit" : "Mode: Add";
+    saveBtn.disabled = true;
+    copyInTextBtn.disabled = true;
+    copyRefBtn.disabled = true;
+    outInText.textContent = "—";
+    outRef.textContent = "—";
+  }
+
+  // ---------------- Clipboard & downloads ----------------
+  async function copyText(text){
+    try { await navigator.clipboard.writeText(text); }
+    catch { alert("Copy failed — your browser blocked clipboard. You can select and copy manually."); }
+  }
+
+  function download(filename, text, mime="text/plain;charset=utf-8"){
+    const blob = new Blob([text], {type:mime});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  // ---------------- Generate outputs ----------------
+  function buildOutputs(){
+    const f = snapshotForm();
+    outInText.textContent = buildInText(f);
+    outRef.textContent = formatReference(f);
+    saveBtn.disabled = false;
+    copyInTextBtn.disabled = false;
+    copyRefBtn.disabled = false;
+  }
+
+  el("generateBtn").addEventListener("click", buildOutputs);
+
+  saveBtn.addEventListener("click", ()=>{
+    const items = loadAll();
+    const f = snapshotForm();
+    const now = new Date().toISOString();
+    f.yearSuffix = computeYearSuffix(f.id, f.authors, f.year);
+
+    if(!f.id){
+      f.id = uid();
+      f.createdAt = now;
+      items.push(f);
+    } else {
+      const idx = items.findIndex(x=>x.id===f.id);
+      if(idx >= 0){
+        f.createdAt = items[idx].createdAt || now;
+        items[idx] = f;
+      } else {
+        f.createdAt = now;
+        items.push(f);
+      }
+    }
+    saveAll(items);
+    renderAllPanels();
+    setForm(null);
+  });
+
+  copyInTextBtn.addEventListener("click", ()=> copyText(outInText.textContent));
+  copyRefBtn.addEventListener("click", ()=> copyText(outRef.textContent));
+
+  el("newBtn").addEventListener("click", ()=> setForm(null));
+
+  // ---------------- CSV Export ----------------
+  function toCSV(items){
+    const cols = [
+      "id","category","year","yearSuffix","secondary","origAuthor","origYear",
+      "authors","title","container","place","publisher","edition","volume","issue","pages","doi","url",
+      "accDay","accMonth","accYear","page","notes","createdAt"
+    ];
+    const esc = (v)=> `"${String(v??"").replace(/"/g,'""')}"`;
+    const lines = [cols.join(",")];
+    for(const it of items){
+      const row = {...it, authors: JSON.stringify(it.authors||[])};
+      lines.push(cols.map(c=>esc(row[c])).join(","));
+    }
+    return lines.join("\n");
+  }
+
+  el("exportBtn").addEventListener("click", ()=>{
+    const items = loadAll();
+    const csv = toCSV(items);
+    const stamp = new Date().toISOString().slice(0,10);
+    download(`references_${sanitizeLibName(getCurrentLib())}_${stamp}.csv`, csv, "text/csv;charset=utf-8");
+  });
+
+  el("clearBtn").addEventListener("click", ()=>{
+    if(confirm(`Clear ALL saved references in "${getCurrentLib()}"?`)){
+      localStorage.removeItem(storageKey());
+      setForm(null);
+      renderAllPanels();
+    }
+  });
+
+  // ---------------- Panels (tabs) ----------------
+  function setTab(name){
+    document.querySelectorAll(".tab").forEach(t=>{
+      t.classList.toggle("active", t.getAttribute("data-tab")===name);
+    });
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+    el(`panel-${name}`).classList.add("active");
+  }
+
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=> setTab(t.getAttribute("data-tab")));
+  });
+
+  // ---------------- Library rendering ----------------
+  function humanCat(v){
+    const map = {
+      website:"Website", journal:"Journal", book:"Book", chapter:"Chapter",
+      policy:"Policy/Report", lecture:"Lecture/PowerPoint", image:"Image", ai:"ChatGPT/AI", other:"Other"
+    };
+    return map[v] || v;
+  }
+
+  function renderLibrary(){
+    const items = loadAll();
+    const q = el("search").value.trim().toLowerCase();
+    const fc = el("filterCat").value;
+
+    let filtered = items.slice().sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+    if(fc !== "all") filtered = filtered.filter(x => x.category === fc);
+
+    if(q){
+      filtered = filtered.filter(x => {
+        const hay = [
+          x.category, x.year, x.yearSuffix,
+          (x.authors||[]).map(a=>a.name+" "+(a.initials||"")).join(" "),
+          x.title, x.container, x.publisher, x.url, x.notes,
+          x.secondary ? (x.origAuthor+" "+x.origYear) : ""
+        ].join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    el("countText").textContent = `${items.length} saved in "${getCurrentLib()}"`;
+
+    const list = el("list");
+    list.innerHTML = "";
+
+    if(filtered.length === 0){
+      list.innerHTML = `<div class="muted" style="padding:10px 2px">No matches in this library. Add a source on the left.</div>`;
+      return;
+    }
+
+    for(const item of filtered){
+      if(!("yearSuffix" in item)) item.yearSuffix = computeYearSuffix(item.id, item.authors, item.year);
+
+      const inText = buildInText(item);
+      const ref = formatReference(item);
+
+      const authorPreview = (item.authors||[]).map(a=>safe(a.name)).filter(Boolean).join(", ") || "Unknown";
+      const yearPreview = (safe(item.year) || "no date") + (safe(item.yearSuffix) ? item.yearSuffix : "");
+
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `
+        <h3>${escapeHtml(item.title || "Untitled")} <span class="pill" style="margin-left:8px">${humanCat(item.category)}</span></h3>
+        <div class="meta">
+          <span>Authors: ${escapeHtml(authorPreview)}</span>
+          <span>Year: ${escapeHtml(yearPreview)}</span>
+          ${item.secondary ? `<span class="pill">Secondary citation</span>` : ``}
+          ${item.url ? `<span>URL: ${escapeHtml(item.url)}</span>` : ``}
+        </div>
+        ${item.notes ? `<div class="muted" style="margin-top:8px">${escapeHtml(item.notes)}</div>` : ``}
+        <div class="refs">
+          <div><div class="muted">In-text</div><div class="out">${escapeHtml(inText)}</div></div>
+          <div><div class="muted">Reference</div><div class="out">${escapeHtml(ref)}</div></div>
+        </div>
+        <div class="smallbtns">
+          <button data-act="copyIn" data-id="${item.id}">Copy in-text</button>
+          <button data-act="copyRef" data-id="${item.id}">Copy reference</button>
+          <button data-act="edit" data-id="${item.id}">Edit</button>
+          <button class="danger" data-act="del" data-id="${item.id}">Delete</button>
+        </div>
+      `;
+      list.appendChild(div);
+    }
+
+    list.querySelectorAll("button[data-act]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const act = btn.getAttribute("data-act");
+        const id = btn.getAttribute("data-id");
+        const items = loadAll();
+        const item = items.find(x=>x.id===id);
+        if(!item) return;
+
+        if(act === "copyIn") copyText(buildInText(item));
+        if(act === "copyRef") copyText(formatReference(item));
+        if(act === "edit"){
+          setForm(item);
+          window.scrollTo({top:0,behavior:"smooth"});
+        }
+        if(act === "del"){
+          if(confirm("Delete this source?")){
+            saveAll(items.filter(x=>x.id!==id));
+            renderAllPanels();
+            if(fields.id===id) setForm(null);
+          }
+        }
+      });
+    });
+  }
+
+  // ---------------- Multi-citation builder ----------------
+  const multiSelected = new Set();
+
+  function sortInTextEntries(entries){
+    function parseYear(y){
+      const m = String(y||"").match(/^(\d{4})/);
+      return m ? Number(m[1]) : 99999;
+    }
+    return entries.slice().sort((a,b)=>{
+      const ya = parseYear(a.yearWithSuffix);
+      const yb = parseYear(b.yearWithSuffix);
+      if(ya !== yb) return ya - yb;
+      const aa = (a.authorKey||"").localeCompare(b.authorKey||"");
+      if(aa !== 0) return aa;
+      return (a.yearWithSuffix||"").localeCompare(b.yearWithSuffix||"");
+    });
+  }
+
+  function renderMulti(){
+    const items = loadAll().slice().sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+    const box = el("multiList");
+    box.innerHTML = "";
+
+    if(items.length === 0){
+      box.innerHTML = `<div class="muted">No saved sources in this library yet.</div>`;
+      return;
+    }
+
+    for(const it of items){
+      const id = it.id;
+      const checked = multiSelected.has(id);
+      const authorLabel = formatAuthorsInText(it.authors);
+      const year = (safe(it.year) || "no date") + (safe(it.yearSuffix) ? it.yearSuffix : "");
+      const tiny = `${authorLabel}, ${year}`;
+
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <div class="selectRow">
+          <input type="checkbox" data-mid="${id}" ${checked ? "checked":""} />
+          <div>
+            <h3 style="margin:0">${escapeHtml(it.title || "Untitled")} <span class="pill" style="margin-left:8px">${humanCat(it.category)}</span></h3>
+            <div class="meta"><span>${escapeHtml(tiny)}</span>${it.secondary ? `<span class="pill">Secondary</span>`:""}</div>
+          </div>
+        </div>
+      `;
+      box.appendChild(row);
+    }
+
+    box.querySelectorAll("input[type='checkbox'][data-mid]").forEach(cb=>{
+      cb.addEventListener("change", ()=>{
+        const id = cb.getAttribute("data-mid");
+        if(cb.checked) multiSelected.add(id); else multiSelected.delete(id);
+      });
+    });
+  }
+
+  function buildMulti(){
+    const items = loadAll().filter(x=>multiSelected.has(x.id));
+    if(items.length === 0){
+      el("outMulti").textContent = "—";
+      el("copyMultiBtn").disabled = true;
+      return;
+    }
+
+    const entries = items.map(it=>{
+      const author = formatAuthorsInText(it.authors);
+      const year = (safe(it.year) || "no date") + (safe(it.yearSuffix) ? it.yearSuffix : "");
+      const text = it.secondary
+        ? (()=> {
+            const oa = safe(it.origAuthor) || "Unknown";
+            const oy = safe(it.origYear) || "no date";
+            return `${oa}, ${oy}, cited by ${author}, ${year}`;
+          })()
+        : `${author}, ${year}`;
+
+      return { text, yearWithSuffix: year, authorKey: author.toLowerCase() };
+    });
+
+    const sorted = sortInTextEntries(entries);
+    const combined = `(${sorted.map(x=>x.text).join("; ")})`;
+    el("outMulti").textContent = combined;
+    el("copyMultiBtn").disabled = false;
+  }
+
+  el("buildMultiBtn").addEventListener("click", buildMulti);
+  el("copyMultiBtn").addEventListener("click", ()=> copyText(el("outMulti").textContent));
+  el("clearMultiSelectionBtn").addEventListener("click", ()=>{
+    multiSelected.clear();
+    renderMulti();
+    buildMulti();
+  });
+
+  // ---------------- Bibliography view ----------------
+  function bibSortKey(it){
+    const first = (it.authors && it.authors[0] && safe(it.authors[0].name)) ? safe(it.authors[0].name).toLowerCase() : "unknown";
+    const year = (safe(it.year) || "no date") + (safe(it.yearSuffix) ? it.yearSuffix : "");
+    const title = safe(it.title).toLowerCase();
+    return `${first}||${year}||${title}`;
+  }
+
+  function renderBib(){
+    const items = loadAll().slice();
+    if(items.length === 0){
+      el("outBib").textContent = "—";
+      return;
+    }
+    for(const it of items){
+      if(!("yearSuffix" in it)) it.yearSuffix = computeYearSuffix(it.id, it.authors, it.year);
+    }
+    const sorted = items.sort((a,b)=> bibSortKey(a).localeCompare(bibSortKey(b)));
+    el("outBib").textContent = sorted.map(it => formatReference(it)).join("\n");
+  }
+
+  el("copyBibBtn").addEventListener("click", ()=> copyText(el("outBib").textContent));
+  el("exportBibTxtBtn").addEventListener("click", ()=>{
+    const stamp = new Date().toISOString().slice(0,10);
+    download(`reference_list_${sanitizeLibName(getCurrentLib())}_${stamp}.txt`, el("outBib").textContent, "text/plain;charset=utf-8");
+  });
+
+  // ---------------- Secondary toggle ----------------
+  fields.secondary.addEventListener("change", ()=>{
+    el("secondaryBox").style.display = fields.secondary.checked ? "block" : "none";
+  });
+
+  // ---------------- Search/filter events ----------------
+  el("search").addEventListener("input", renderLibrary);
+  el("filterCat").addEventListener("change", renderLibrary);
+
+  // ---------------- Render all panels ----------------
+  function renderAllPanels(){
+    renderLibrary();
+    renderMulti();
+    renderBib();
+  }
+
+  // ---------------- Library selector UI ----------------
+  function refreshLibrarySelect(){
+    const sel = el("librarySelect");
+    const libs = getLibList().map(sanitizeLibName).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+    const cur = getCurrentLib();
+
+    sel.innerHTML = "";
+    for(const name of libs){
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      if(name === cur) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+
+  function switchLibrary(name){
+    const n = sanitizeLibName(name);
+    if(!n) return;
+    setCurrentLib(n);
+
+    // ensure it’s in the list
+    const libs = getLibList().map(sanitizeLibName).filter(Boolean);
+    if(!libs.includes(n)){
+      libs.push(n);
+      setLibList(libs);
+    }
+
+    // reset selections + form
+    multiSelected.clear();
+    setForm(null);
+    refreshLibrarySelect();
+    renderAllPanels();
+  }
+
+  el("librarySelect").addEventListener("change", (e)=> switchLibrary(e.target.value));
+
+  el("newLibraryBtn").addEventListener("click", ()=>{
+    const name = sanitizeLibName(prompt("New library name (e.g., Sam, Dissertation refs):", "") || "");
+    if(!name) return;
+    switchLibrary(name);
+  });
+
+  el("deleteLibraryBtn").addEventListener("click", ()=>{
+    const cur = getCurrentLib();
+    if(!cur) return;
+    if(!confirm(`Delete the entire library "${cur}"? This cannot be undone.`)) return;
+
+    // delete its data
+    localStorage.removeItem(KEY_PREFIX + cur);
+
+    // remove from list
+    let libs = getLibList().map(sanitizeLibName).filter(Boolean).filter(x=>x!==cur);
+    setLibList(libs);
+
+    // pick another library or make one
+    const next = libs[0] || "My Library";
+    setCurrentLib(next);
+    if(!libs.length) setLibList([next]);
+
+    multiSelected.clear();
+    setForm(null);
+    refreshLibrarySelect();
+    renderAllPanels();
+  });
+
+  // ---------------- First load ----------------
+  (function init(){
+    const current = ensureLibraryExists();
+    refreshLibrarySelect();
+    switchLibrary(current); // sets + renders
+  })();
+</script>
+</body>
+</html>
