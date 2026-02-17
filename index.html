@@ -3,15 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Harvard Reference Tracker</title>
+  <title>Harvard Reference Tracker (Import + PDF + Word)</title>
+
+  <!-- PDF.js (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
+
   <style>
-    :root { --bg:#0b0f17; --card:#121a26; --muted:#93a4be; --text:#e9eef7; --line:#223049; }
+    :root { --bg:#0b0f17; --card:#121a26; --muted:#93a4be; --text:#e9eef7; --line:#223049; --good:#1f6f4a; }
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#0b0f17,#070a10);color:var(--text)}
     header{padding:18px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,23,.9);backdrop-filter: blur(10px);z-index:10}
     header h1{margin:0;font-size:18px}
     header p{margin:6px 0 0;color:var(--muted);font-size:13px}
-    main{max-width:1250px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns: 480px 1fr}
+    main{max-width:1250px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns: 540px 1fr}
     @media (max-width: 1100px){ main{grid-template-columns:1fr} }
 
     .card{background:rgba(18,26,38,.9);border:1px solid var(--line);border-radius:16px;padding:14px}
@@ -70,13 +74,22 @@
     .libbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .libbar select{padding:8px 10px;border-radius:999px}
     .libbar button{padding:8px 10px;font-size:12px}
+
+    .drop{
+      border:1px dashed #2a3b59;border-radius:14px;padding:12px;background:#0a1220;
+      display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap
+    }
+    .drop strong{font-size:13px}
+    .drop .left{display:flex;flex-direction:column;gap:4px}
+    .drop.drag{border-color:#2f7cff;background:rgba(47,124,255,.08)}
+    .ok{color:#8fe6b5}
   </style>
 </head>
 
 <body>
 <header>
   <h1>Harvard Reference Tracker</h1>
-  <p>Paste a link → auto-fill → edit → save. Separate libraries for friends. Works on GitHub Pages.</p>
+  <p>MyBib-style import (DOI/PMID/ISBN/URL) + Drag & Drop PDFs + Organisation detection + Word-ready bibliography.</p>
 </header>
 
 <main>
@@ -85,17 +98,31 @@
     <div class="topline">
       <div>
         <div class="pill" id="modePill">Mode: Add</div>
-        <div class="hint">Paste link to auto-fill (optional) → Generate → Save.</div>
+        <div class="hint">Best accuracy: DOI/PMID/ISBN. PDFs import metadata + first-page text. Webpage dates are optional.</div>
       </div>
       <button id="newBtn" type="button">New</button>
     </div>
 
-    <label>Paste link to auto-fill</label>
+    <label>Quick Import (paste DOI / PMID / ISBN / URL)</label>
     <div class="row">
-      <input id="urlAutofill" placeholder="https://..." />
-      <button id="autoFillBtn" class="primary" type="button">Auto-fill</button>
+      <input id="quickImport" placeholder="e.g., 10.1136/bmj.n71  |  31452104  |  9780134685991  |  https://..." />
+      <button id="importBtn" class="primary" type="button">Import</button>
     </div>
-    <div class="hint" id="autoFillStatus">Tip: Some sites block auto-fill. If it fails, fill manually.</div>
+    <div class="hint" id="importStatus">Tip: DOI import is closest to MyBib accuracy.</div>
+
+    <label>PDF Import (drag & drop or click)</label>
+    <div class="drop" id="dropZone">
+      <div class="left">
+        <strong>Drop a PDF here</strong>
+        <div class="muted">We’ll extract Title/Author/Date + scan page 1 for organisations (NICE/NHS/NMC/GOV.UK/WHO/CDC etc).</div>
+      </div>
+      <div class="btnbar" style="margin:0">
+        <input id="pdfInput" type="file" accept="application/pdf" style="display:none" />
+        <button id="pickPdfBtn" type="button">Choose PDF</button>
+        <button id="clearPdfBtn" type="button" class="danger">Clear</button>
+      </div>
+    </div>
+    <div class="hint" id="pdfStatus">PDFs are not uploaded anywhere; only extracted details are stored in your browser.</div>
 
     <div class="divider"></div>
 
@@ -139,7 +166,7 @@
     <div class="btnbar" style="margin-top:8px">
       <button id="addAuthorBtn" type="button">+ Add author</button>
       <button id="setOrgBtn" type="button">Use as organisation</button>
-      <span class="hint">For organisations: put one author (e.g., NICE / NHS / NMC) with no initials.</span>
+      <span class="hint">For organisations: one author (e.g., NICE / NHS / NMC) with no initials.</span>
     </div>
 
     <div class="row3">
@@ -167,6 +194,18 @@
         <input id="page" placeholder="e.g., p.12" />
       </div>
     </div>
+
+    <div class="row">
+      <div>
+        <label>Published day (optional)</label>
+        <input id="pubDay" placeholder="e.g., 12" />
+      </div>
+      <div>
+        <label>Published month (optional)</label>
+        <input id="pubMonth" placeholder="e.g., Jan" />
+      </div>
+    </div>
+    <div class="hint">Mainly for webpages/policies if your uni requires full published date. Journals usually don’t.</div>
 
     <label>Title</label>
     <input id="title" placeholder="Exact page/article/book title" />
@@ -215,7 +254,7 @@
       </div>
     </div>
 
-    <label>URL</label>
+    <label>URL (optional for PDFs; recommended if it’s an online PDF)</label>
     <input id="url" placeholder="https://..." />
 
     <label>Notes</label>
@@ -307,10 +346,14 @@
     <div class="panel" id="panel-bib">
       <div class="hint">Final reference list view (auto-sorted alphabetically).</div>
       <div class="divider"></div>
+
       <div class="btnbar">
         <button class="primary" id="copyBibBtn" type="button">Copy full reference list</button>
+        <button id="copyBibWordBtn" type="button">Copy for Word (hanging indent)</button>
         <button id="exportBibTxtBtn" type="button">Export .txt</button>
+        <button class="primary" id="exportBibDocBtn" type="button">Export Word .doc</button>
       </div>
+
       <label>Reference list</label>
       <div class="out" id="outBib">—</div>
     </div>
@@ -318,6 +361,13 @@
 </main>
 
 <script>
+  // ===================== PDF.js worker =====================
+  // Uses CDN worker if available; fallback to default.
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js";
+  } catch {}
+
   // ===================== Libraries =====================
   const KEY_PREFIX = "harvard_ref_tool_lib_";
   const LIBNAME_KEY = "harvard_ref_tool_current_lib";
@@ -331,35 +381,20 @@
     try { return JSON.parse(localStorage.getItem(LIBLIST_KEY)) || []; }
     catch { return []; }
   }
-  function setLibList(list){
-    localStorage.setItem(LIBLIST_KEY, JSON.stringify(list));
-  }
-  function getCurrentLib(){
-    const cur = sanitizeLibName(localStorage.getItem(LIBNAME_KEY));
-    return cur || "";
-  }
-  function setCurrentLib(name){
-    localStorage.setItem(LIBNAME_KEY, sanitizeLibName(name));
-  }
-  function storageKey(){
-    return KEY_PREFIX + getCurrentLib();
-  }
+  function setLibList(list){ localStorage.setItem(LIBLIST_KEY, JSON.stringify(list)); }
+  function getCurrentLib(){ return sanitizeLibName(localStorage.getItem(LIBNAME_KEY)) || ""; }
+  function setCurrentLib(name){ localStorage.setItem(LIBNAME_KEY, sanitizeLibName(name)); }
+  function storageKey(){ return KEY_PREFIX + getCurrentLib(); }
+
   function ensureLibraryExists(){
     let libs = getLibList().map(sanitizeLibName).filter(Boolean);
     let cur = getCurrentLib();
-
     if(!cur){
       cur = sanitizeLibName(prompt("Name your Library (e.g., Angel, Sam, Placement refs):", "Angel") || "My Library") || "My Library";
       setCurrentLib(cur);
     }
-    if(!libs.includes(cur)){
-      libs.push(cur);
-      setLibList(libs);
-    }
-    if(!libs.length){
-      libs = [cur];
-      setLibList(libs);
-    }
+    if(!libs.includes(cur)){ libs.push(cur); setLibList(libs); }
+    if(!libs.length){ libs = [cur]; setLibList(libs); }
     return cur;
   }
 
@@ -381,6 +416,8 @@
     if(!dd && !mm && !yy) return "";
     return `[Accessed ${dd||"??"} ${mm||"??"}${yy ? ", " + yy : ""}.]`;
   }
+  function setImportStatus(msg){ el("importStatus").textContent = msg; }
+  function setPdfStatus(msg){ el("pdfStatus").textContent = msg; }
 
   const fields = {
     id: null,
@@ -390,6 +427,8 @@
     accMonth: el("accMonth"),
     accYear: el("accYear"),
     page: el("page"),
+    pubDay: el("pubDay"),
+    pubMonth: el("pubMonth"),
     title: el("title"),
     container: el("container"),
     place: el("place"),
@@ -410,34 +449,10 @@
   const outInText = el("outInText");
   const outRef = el("outRef");
   const saveBtn = el("saveBtn");
-  const copyInTextBtn = el("copyInTextBtn");
-  const copyRefBtn = el("copyRefBtn");
 
-  // ===================== Authors =====================
+  // ===================== Authors UI =====================
   const authorsWrap = el("authorsWrap");
   let authorsState = []; // [{name:"Smith", initials:"J."}, ...]
-
-  function formatAuthorsReference(authors){
-    const cleaned = (authors||[]).map(a=>({name:safe(a.name), initials:safe(a.initials)})).filter(a=>a.name);
-    if(cleaned.length === 0) return "Unknown";
-    const as = cleaned.map(a => a.initials ? `${a.name}, ${a.initials}` : a.name);
-    if(as.length === 1) return as[0];
-    if(as.length === 2) return `${as[0]} and ${as[1]}`;
-    return `${as.slice(0,-1).join(", ")} and ${as[as.length-1]}`;
-  }
-
-  function formatAuthorsInText(authors){
-    const cleaned = (authors||[]).map(a=>safe(a.name)).filter(Boolean);
-    if(cleaned.length === 0) return "Unknown";
-    if(cleaned.length === 1) return cleaned[0];
-    if(cleaned.length === 2) return `${cleaned[0]} and ${cleaned[1]}`;
-    return `${cleaned[0]} et al.`;
-  }
-
-  function authorsKey(authors){
-    const cleaned = (authors||[]).map(a=>safe(a.name).toLowerCase()).filter(Boolean);
-    return cleaned.length ? cleaned.join("|") : "unknown";
-  }
 
   function renderAuthors(){
     authorsWrap.innerHTML = "";
@@ -483,6 +498,98 @@
     renderAuthors();
   });
 
+  // ===================== Author formatting =====================
+  function formatAuthorsReference(authors){
+    const cleaned = (authors||[]).map(a=>({name:safe(a.name), initials:safe(a.initials)})).filter(a=>a.name);
+    if(cleaned.length === 0) return "Unknown";
+    const as = cleaned.map(a => a.initials ? `${a.name}, ${a.initials}` : a.name);
+    if(as.length === 1) return as[0];
+    if(as.length === 2) return `${as[0]} and ${as[1]}`;
+    return `${as.slice(0,-1).join(", ")} and ${as[as.length-1]}`;
+  }
+
+  function formatAuthorsInText(authors){
+    const cleaned = (authors||[]).map(a=>safe(a.name)).filter(Boolean);
+    if(cleaned.length === 0) return "Unknown";
+    if(cleaned.length === 1) return cleaned[0];
+    if(cleaned.length === 2) return `${cleaned[0]} and ${cleaned[1]}`;
+    return `${cleaned[0]} et al.`;
+  }
+
+  function authorsKey(authors){
+    const cleaned = (authors||[]).map(a=>safe(a.name).toLowerCase()).filter(Boolean);
+    return cleaned.length ? cleaned.join("|") : "unknown";
+  }
+
+  // ===================== Organisation detection =====================
+  function hostnameFromUrl(url){
+    try { return new URL(url).hostname.toLowerCase(); } catch { return ""; }
+  }
+
+  function bestOrganisationFromSignals({url, title, text}){
+    const h = hostnameFromUrl(url || "");
+    const t = (title || "") + " " + (text || "");
+    const s = t.toLowerCase();
+
+    // Domain-first (most reliable)
+    const domainMap = [
+      { re: /(^|\.)nice\.org\.uk$/, org: "NICE" },
+      { re: /(^|\.)nhs\.uk$/, org: "NHS" },
+      { re: /(^|\.)nmc\.org\.uk$/, org: "Nursing and Midwifery Council (NMC)" },
+      { re: /(^|\.)gov\.uk$/, org: "UK Government" },
+      { re: /(^|\.)who\.int$/, org: "World Health Organization (WHO)" },
+      { re: /(^|\.)cdc\.gov$/, org: "Centers for Disease Control and Prevention (CDC)" },
+      { re: /(^|\.)bmj\.com$/, org: "BMJ" },
+      { re: /(^|\.)thelancet\.com$/, org: "The Lancet" },
+      { re: /(^|\.)rcn\.org\.uk$/, org: "Royal College of Nursing (RCN)" },
+      { re: /(^|\.)rcem\.ac\.uk$/, org: "Royal College of Emergency Medicine (RCEM)" },
+      { re: /(^|\.)rcpsych\.ac\.uk$/, org: "Royal College of Psychiatrists" },
+      { re: /(^|\.)rcplondon\.ac\.uk$/, org: "Royal College of Physicians" },
+      { re: /(^|\.)bma\.org\.uk$/, org: "British Medical Association (BMA)" },
+      { re: /(^|\.)england\.nhs\.uk$/, org: "NHS England" },
+      { re: /(^|\.)wales\.nhs\.uk$/, org: "NHS Wales" },
+      { re: /(^|\.)gov\.wales$/, org: "Welsh Government" },
+      { re: /(^|\.)hse\.ie$/, org: "Health Service Executive (HSE)" },
+    ];
+    for(const m of domainMap){
+      if(h && m.re.test(h)) return m.org;
+    }
+
+    // Text signals (PDFs + pages)
+    const textMap = [
+      { re: /\bnice\b|national institute for health and care excellence/i, org: "NICE" },
+      { re: /\bnmc\b|nursing and midwifery council/i, org: "Nursing and Midwifery Council (NMC)" },
+      { re: /\bnhs\b|national health service/i, org: "NHS" },
+      { re: /\bwho\b|world health organization|world health organisation/i, org: "World Health Organization (WHO)" },
+      { re: /\bcdc\b|centers for disease control|centre(s)? for disease control/i, org: "Centers for Disease Control and Prevention (CDC)" },
+      { re: /\bpublic health england\b|\bphe\b/i, org: "Public Health England (PHE)" },
+      { re: /\buk health security agency\b|\buhsa\b/i, org: "UK Health Security Agency (UKHSA)" },
+      { re: /\boffice for national statistics\b|\bons\b/i, org: "Office for National Statistics (ONS)" },
+      { re: /\broyal college of nursing\b|\brcn\b/i, org: "Royal College of Nursing (RCN)" },
+      { re: /\bbmj\b/i, org: "BMJ" },
+      { re: /\bthelancet\b|\blancet\b/i, org: "The Lancet" },
+      { re: /\bdepartment of health and social care\b|\bdhsc\b/i, org: "Department of Health and Social Care (DHSC)" },
+      { re: /\bwelsh government\b|\blywodraeth cymru\b/i, org: "Welsh Government" },
+      { re: /\bhealth education england\b|\bhee\b/i, org: "Health Education England (HEE)" },
+    ];
+    for(const m of textMap){
+      if(m.re.test(s)) return m.org;
+    }
+
+    // If nothing, try site name from domain
+    if(h){
+      const bits = h.replace(/^www\./,"").split(".");
+      if(bits.length >= 2) return bits[0].toUpperCase();
+    }
+    return "";
+  }
+
+  function setOrganisationAsAuthor(org){
+    if(!org) return;
+    authorsState = [{ name: org, initials: "" }];
+    renderAuthors();
+  }
+
   // ===================== a/b/c suffix =====================
   function computeYearSuffix(currentId, authors, year){
     const y = safe(year) || "no date";
@@ -505,8 +612,7 @@
       return safe(current.yearSuffix);
     }
 
-    const letters = "abcdefghijklmnopqrstuvwxyz".split("");
-    for(const l of letters){
+    for(const l of "abcdefghijklmnopqrstuvwxyz"){
       if(!used.has(l)) return l;
     }
     return "";
@@ -544,13 +650,9 @@
     const url = safe(f.url);
     const acc = accessedStr(f.accDay, f.accMonth, f.accYear);
 
-    if(cat === "other"){
-      let base = `${authorsRef} (${year}), ${title || "Untitled"}.`;
-      if(container) base += ` ${container}.`;
-      if(url) base += ` Available from: ${url}.`;
-      if(acc) base += ` ${acc}`;
-      return base.replace(/\s+/g,' ').trim();
-    }
+    const pubDay = safe(f.pubDay);
+    const pubMonth = safe(f.pubMonth);
+    const pubDate = (pubDay && pubMonth && yearCore !== "no date") ? `${pubDay} ${pubMonth} ${year}` : year;
 
     if(cat === "book"){
       let s = `${authorsRef} (${year}), ${title || "Untitled"}.`;
@@ -569,17 +671,18 @@
 
     if(cat === "journal"){
       let s = `${authorsRef} (${year}), ‘${title || "Untitled article"}’, ${container || "Journal title"}.`;
-      if(volume) s += ` Vol.${volume}.`;
-      if(issue) s += ` No.${issue}.`;
+      if(volume && issue) s += ` ${volume}(${issue}).`;
+      else if(volume) s += ` ${volume}.`;
+      else if(issue) s += ` (${issue}).`;
       if(pages) s += ` pp. ${pages}.`;
       if(doi) s += ` DOI: ${doi}.`;
       else if(url) s += ` Available from: ${url}.`;
-      if(acc && (url && !doi)) s += ` ${acc}`;
+      if(acc && url && !doi) s += ` ${acc}`;
       return s.replace(/\s+/g,' ').trim();
     }
 
     if(cat === "website" || cat === "policy"){
-      let s = `${authorsRef} (${year}), ${title || "Untitled"}.`;
+      let s = `${authorsRef} (${pubDate}), ${title || "Untitled"}.`;
       if(url) s += ` Available from: ${url}.`;
       if(acc) s += ` ${acc}`;
       return s.replace(/\s+/g,' ').trim();
@@ -610,6 +713,7 @@
     }
 
     let s = `${authorsRef} (${year}), ${title || "Untitled"}.`;
+    if(container) s += ` ${container}.`;
     if(url) s += ` Available from: ${url}.`;
     if(acc) s += ` ${acc}`;
     return s.replace(/\s+/g,' ').trim();
@@ -647,9 +751,9 @@
     renderAuthors();
 
     modePill.textContent = fields.id ? "Mode: Edit" : "Mode: Add";
-    saveBtn.disabled = true;
-    copyInTextBtn.disabled = true;
-    copyRefBtn.disabled = true;
+    el("saveBtn").disabled = true;
+    el("copyInTextBtn").disabled = true;
+    el("copyRefBtn").disabled = true;
     outInText.textContent = "—";
     outRef.textContent = "—";
   }
@@ -675,17 +779,15 @@
     outInText.textContent = buildInText(f);
     outRef.textContent = formatReference(f);
     saveBtn.disabled = false;
-    copyInTextBtn.disabled = false;
-    copyRefBtn.disabled = false;
+    el("copyInTextBtn").disabled = false;
+    el("copyRefBtn").disabled = false;
   }
-
   el("generateBtn").addEventListener("click", buildOutputs);
 
-  saveBtn.addEventListener("click", ()=>{
+  el("saveBtn").addEventListener("click", ()=>{
     const items = loadAll();
     const f = snapshotForm();
     const now = new Date().toISOString();
-
     f.yearSuffix = computeYearSuffix(f.id, f.authors, f.year);
 
     if(!f.id){
@@ -707,9 +809,8 @@
     setForm(null);
   });
 
-  copyInTextBtn.addEventListener("click", ()=> copyText(outInText.textContent));
-  copyRefBtn.addEventListener("click", ()=> copyText(outRef.textContent));
-
+  el("copyInTextBtn").addEventListener("click", ()=> copyText(outInText.textContent));
+  el("copyRefBtn").addEventListener("click", ()=> copyText(outRef.textContent));
   el("newBtn").addEventListener("click", ()=> setForm(null));
 
   // ===================== Secondary toggle =====================
@@ -725,9 +826,7 @@
     document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
     el(`panel-${name}`).classList.add("active");
   }
-  document.querySelectorAll(".tab").forEach(t=>{
-    t.addEventListener("click", ()=> setTab(t.getAttribute("data-tab")));
-  });
+  document.querySelectorAll(".tab").forEach(t=> t.addEventListener("click", ()=> setTab(t.getAttribute("data-tab"))) );
 
   // ===================== Library rendering =====================
   function humanCat(v){
@@ -749,9 +848,9 @@
     if(q){
       filtered = filtered.filter(x => {
         const hay = [
-          x.category, x.year, x.yearSuffix,
+          x.category, x.year, x.yearSuffix, x.pubDay, x.pubMonth,
           (x.authors||[]).map(a=>a.name+" "+(a.initials||"")).join(" "),
-          x.title, x.container, x.publisher, x.url, x.notes,
+          x.title, x.container, x.publisher, x.url, x.doi, x.notes,
           x.secondary ? (x.origAuthor+" "+x.origYear) : ""
         ].join(" ").toLowerCase();
         return hay.includes(q);
@@ -784,8 +883,8 @@
         <div class="meta">
           <span>Authors: ${escapeHtml(authorPreview)}</span>
           <span>Year: ${escapeHtml(yearPreview)}</span>
+          ${item.doi ? `<span>DOI: ${escapeHtml(item.doi)}</span>` : ``}
           ${item.secondary ? `<span class="pill">Secondary citation</span>` : ``}
-          ${item.url ? `<span>URL: ${escapeHtml(item.url)}</span>` : ``}
         </div>
         ${item.notes ? `<div class="muted" style="margin-top:8px">${escapeHtml(item.notes)}</div>` : ``}
         <div class="refs">
@@ -902,7 +1001,6 @@
             return `${oa}, ${oy}, cited by ${author}, ${year}`;
           })()
         : `${author}, ${year}`;
-
       return { text, yearWithSuffix: year, authorKey: author.toLowerCase() };
     });
 
@@ -920,7 +1018,7 @@
     buildMulti();
   });
 
-  // ===================== Bibliography view =====================
+  // ===================== Bibliography view + Word export =====================
   function bibSortKey(it){
     const first = (it.authors && it.authors[0] && safe(it.authors[0].name)) ? safe(it.authors[0].name).toLowerCase() : "unknown";
     const year = (safe(it.year) || "no date") + (safe(it.yearSuffix) ? it.yearSuffix : "");
@@ -928,31 +1026,81 @@
     return `${first}||${year}||${title}`;
   }
 
-  function renderBib(){
+  function getSortedBibItems(){
     const items = loadAll().slice();
-    if(items.length === 0){
-      el("outBib").textContent = "—";
-      return;
-    }
     for(const it of items){
       if(!("yearSuffix" in it)) it.yearSuffix = computeYearSuffix(it.id, it.authors, it.year);
     }
-    const sorted = items.sort((a,b)=> bibSortKey(a).localeCompare(bibSortKey(b)));
-    el("outBib").textContent = sorted.map(it => formatReference(it)).join("\n");
+    items.sort((a,b)=> bibSortKey(a).localeCompare(bibSortKey(b)));
+    return items;
+  }
+
+  function buildBibPlainText(){
+    const sorted = getSortedBibItems();
+    return sorted.length ? sorted.map(it => formatReference(it)).join("\n") : "—";
+  }
+
+  function buildBibWordHtml(){
+    const sorted = getSortedBibItems();
+    if(!sorted.length) return "<p>—</p>";
+    const paras = sorted.map(it=>{
+      const ref = formatReference(it) || "";
+      const safeRef = ref.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      return `<p style="margin:0 0 6pt 0; margin-left:36pt; text-indent:-36pt; font-family:Calibri, Arial, sans-serif; font-size:11pt;">${safeRef}</p>`;
+    });
+    return `<!doctype html><html><head><meta charset="utf-8"></head><body>${paras.join("")}</body></html>`;
+  }
+
+  async function copyHtmlToClipboard(html, fallbackText){
+    try{
+      if(navigator.clipboard && window.ClipboardItem){
+        const item = new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([fallbackText], { type: "text/plain" }),
+        });
+        await navigator.clipboard.write([item]);
+        return true;
+      }
+    } catch {}
+    await copyText(fallbackText);
+    return false;
+  }
+
+  function downloadDoc(filename, html){
+    const blob = new Blob([html], { type: "application/msword;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function renderBib(){
+    el("outBib").textContent = buildBibPlainText();
   }
 
   el("copyBibBtn").addEventListener("click", ()=> copyText(el("outBib").textContent));
+  el("copyBibWordBtn").addEventListener("click", async ()=>{
+    const text = buildBibPlainText();
+    const html = buildBibWordHtml();
+    await copyHtmlToClipboard(html, text);
+  });
   el("exportBibTxtBtn").addEventListener("click", ()=>{
     const stamp = new Date().toISOString().slice(0,10);
     download(`reference_list_${sanitizeLibName(getCurrentLib())}_${stamp}.txt`, el("outBib").textContent, "text/plain;charset=utf-8");
   });
+  el("exportBibDocBtn").addEventListener("click", ()=>{
+    const stamp = new Date().toISOString().slice(0,10);
+    downloadDoc(`reference_list_${sanitizeLibName(getCurrentLib())}_${stamp}.doc`, buildBibWordHtml());
+  });
 
-  // ===================== Export / clear current library =====================
+  // ===================== Export / clear =====================
   function toCSV(items){
     const cols = [
       "id","category","year","yearSuffix","secondary","origAuthor","origYear",
       "authors","title","container","place","publisher","edition","volume","issue","pages","doi","url",
-      "accDay","accMonth","accYear","page","notes","createdAt"
+      "accDay","accMonth","accYear","pubDay","pubMonth","page","notes","createdAt"
     ];
     const esc = (v)=> `"${String(v??"").replace(/"/g,'""')}"`;
     const lines = [cols.join(",")];
@@ -978,11 +1126,11 @@
     }
   });
 
-  // ===================== Search/filter events =====================
+  // ===================== Search/filter =====================
   el("search").addEventListener("input", renderLibrary);
   el("filterCat").addEventListener("change", renderLibrary);
 
-  // ===================== Library selector UI =====================
+  // ===================== Library selector =====================
   function refreshLibrarySelect(){
     const sel = el("librarySelect");
     const libs = getLibList().map(sanitizeLibName).filter(Boolean).sort((a,b)=>a.localeCompare(b));
@@ -1004,10 +1152,7 @@
     setCurrentLib(n);
 
     const libs = getLibList().map(sanitizeLibName).filter(Boolean);
-    if(!libs.includes(n)){
-      libs.push(n);
-      setLibList(libs);
-    }
+    if(!libs.includes(n)){ libs.push(n); setLibList(libs); }
 
     multiSelected.clear();
     setForm(null);
@@ -1029,7 +1174,6 @@
     if(!confirm(`Delete the entire library "${cur}"? This cannot be undone.`)) return;
 
     localStorage.removeItem(KEY_PREFIX + cur);
-
     let libs = getLibList().map(sanitizeLibName).filter(Boolean).filter(x=>x!==cur);
     setLibList(libs);
 
@@ -1050,17 +1194,181 @@
     renderBib();
   }
 
-  // ===================== URL AUTO-FILL =====================
-  function setStatus(msg){
-    const s = el("autoFillStatus");
-    if(s) s.textContent = msg;
-  }
-
+  // ===================== MyBib-style Import Engine =====================
   function normaliseUrl(u){
     let url = (u || "").trim();
     if(!url) return "";
     if(!/^https?:\/\//i.test(url)) url = "https://" + url;
     return url;
+  }
+
+  function detectInputType(raw){
+    const s = (raw || "").trim();
+    if(!s) return { type:"empty", value:"" };
+
+    const doiMatch = s.match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
+    if(doiMatch) return { type:"doi", value: doiMatch[0] };
+
+    if(/^\d{6,10}$/.test(s)) return { type:"pmid", value: s };
+
+    const isbn = s.replace(/[\s-]/g,"");
+    if(/^\d{13}$/.test(isbn) || /^\d{9}[\dXx]$/.test(isbn)) return { type:"isbn", value: isbn };
+
+    if(/^https?:\/\//i.test(s) || s.includes(".")) return { type:"url", value: normaliseUrl(s) };
+
+    return { type:"unknown", value:s };
+  }
+
+  function fillAccessedTodayIfBlank(){
+    const d = new Date();
+    const day = String(d.getDate());
+    const month = d.toLocaleString("en-GB", { month: "short" });
+    const yr = String(d.getFullYear());
+    if(!safe(el("accDay").value)) el("accDay").value = day;
+    if(!safe(el("accMonth").value)) el("accMonth").value = month;
+    if(!safe(el("accYear").value)) el("accYear").value = yr;
+  }
+
+  function setAuthorsFromCrossref(arr){
+    if(!Array.isArray(arr) || arr.length === 0){
+      authorsState = [{name:"", initials:""}];
+      renderAuthors();
+      return;
+    }
+    authorsState = arr.slice(0, 15).map(a=>{
+      const family = a.family || "";
+      const given = a.given || "";
+      const initials = given ? given.split(/\s+/).filter(Boolean).map(x=>x[0].toUpperCase()+".").join(" ") : "";
+      return { name: family || given || "", initials };
+    }).filter(x=>x.name);
+    if(authorsState.length === 0) authorsState = [{name:"", initials:""}];
+    renderAuthors();
+  }
+
+  async function importFromDOI(doi){
+    setImportStatus("Importing from DOI (Crossref)…");
+    const url = `https://api.crossref.org/works/${encodeURIComponent(doi)}`;
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if(!res.ok) throw new Error("Crossref failed");
+    const data = await res.json();
+    const m = data?.message;
+
+    el("category").value = "journal";
+    el("doi").value = doi;
+
+    const title = Array.isArray(m?.title) ? m.title[0] : (m?.title || "");
+    if(title) el("title").value = title;
+
+    const journal = Array.isArray(m?.["container-title"]) ? m["container-title"][0] : (m?.["container-title"] || "");
+    if(journal) el("container").value = journal;
+
+    if(m?.volume) el("volume").value = m.volume;
+    if(m?.issue) el("issue").value = m.issue;
+    if(m?.page) el("pages").value = m.page;
+
+    const pubYear =
+      m?.issued?.["date-parts"]?.[0]?.[0] ||
+      m?.published?.["date-parts"]?.[0]?.[0] ||
+      m?.["published-online"]?.["date-parts"]?.[0]?.[0] || "";
+    if(pubYear) el("year").value = String(pubYear);
+
+    const link = m?.URL || (doi ? `https://doi.org/${doi}` : "");
+    if(link) el("url").value = link;
+
+    setAuthorsFromCrossref(m?.author || []);
+    fillAccessedTodayIfBlank();
+
+    // org boost from journal/site if author list missing
+    const maybeOrg = bestOrganisationFromSignals({ url: link, title });
+    if(maybeOrg && (!authorsState[0] || !safe(authorsState[0].name))) setOrganisationAsAuthor(maybeOrg);
+
+    setImportStatus("Imported from Crossref. Check anything you want, then Generate → Save.");
+  }
+
+  async function importFromPMID(pmid){
+    setImportStatus("Importing from PMID (PubMed)…");
+    const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${encodeURIComponent(pmid)}&retmode=xml`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("PubMed failed");
+    const xmlText = await res.text();
+    const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+
+    const getText = (sel)=> doc.querySelector(sel)?.textContent?.trim() || "";
+
+    const title = getText("ArticleTitle");
+    const journal = getText("Journal > Title");
+    const year = getText("PubDate > Year") || getText("ArticleDate > Year");
+    const volume = getText("JournalIssue > Volume");
+    const issue = getText("JournalIssue > Issue");
+    const pages = getText("Pagination > MedlinePgn");
+    const doi = Array.from(doc.querySelectorAll("ArticleId[IdType='doi']")).map(n=>n.textContent.trim())[0] || "";
+
+    const authorNodes = Array.from(doc.querySelectorAll("AuthorList > Author"));
+    const authors = authorNodes.map(a=>{
+      const last = a.querySelector("LastName")?.textContent?.trim() || "";
+      const fore = a.querySelector("ForeName")?.textContent?.trim() || "";
+      const initials = fore ? fore.split(/\s+/).filter(Boolean).map(x=>x[0].toUpperCase()+".").join(" ") : "";
+      return { name: last || fore, initials };
+    }).filter(x=>x.name);
+
+    el("category").value = "journal";
+    if(title) el("title").value = title;
+    if(journal) el("container").value = journal;
+    if(year) el("year").value = year;
+    if(volume) el("volume").value = volume;
+    if(issue) el("issue").value = issue;
+    if(pages) el("pages").value = pages;
+    if(doi) el("doi").value = doi;
+
+    el("url").value = doi ? `https://doi.org/${doi}` : `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`;
+
+    authorsState = authors.length ? authors : [{name:"", initials:""}];
+    renderAuthors();
+
+    fillAccessedTodayIfBlank();
+    setImportStatus("Imported from PubMed. Check anything you want, then Generate → Save.");
+  }
+
+  async function importFromISBN(isbn){
+    setImportStatus("Importing from ISBN (Open Library)…");
+    const url = `https://openlibrary.org/isbn/${encodeURIComponent(isbn)}.json`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("OpenLibrary failed");
+    const data = await res.json();
+
+    el("category").value = "book";
+    el("title").value = data?.title || "";
+    if(data?.publish_date){
+      const m = String(data.publish_date).match(/(\d{4})/);
+      if(m) el("year").value = m[1];
+    }
+    el("publisher").value = Array.isArray(data?.publishers) ? data.publishers[0] : (data?.publishers || "");
+    el("place").value = Array.isArray(data?.publish_places) ? data.publish_places[0] : (data?.publish_places || "");
+    el("url").value = data?.key ? `https://openlibrary.org${data.key}` : "";
+
+    const authorKeys = Array.isArray(data?.authors) ? data.authors.map(a=>a.key).filter(Boolean) : [];
+    const authors = [];
+    for(const k of authorKeys.slice(0,5)){
+      try{
+        const r = await fetch(`https://openlibrary.org${k}.json`);
+        if(r.ok){
+          const a = await r.json();
+          const name = (a?.personal_name || a?.name || "").trim();
+          if(name){
+            const parts = name.split(/\s+/).filter(Boolean);
+            const family = parts.length ? parts[parts.length-1] : name;
+            const given = parts.slice(0,-1).join(" ");
+            const initials = given ? given.split(/\s+/).filter(Boolean).map(x=>x[0].toUpperCase()+".").join(" ") : "";
+            authors.push({ name: family, initials });
+          }
+        }
+      } catch {}
+    }
+    authorsState = authors.length ? authors : [{name:"", initials:""}];
+    renderAuthors();
+
+    fillAccessedTodayIfBlank();
+    setImportStatus("Imported from Open Library. Check publisher/place/year, then Generate → Save.");
   }
 
   function pickMeta(doc, selectors){
@@ -1072,247 +1380,356 @@
     return "";
   }
 
-  function extractYearFromDate(dateStr){
-    if(!dateStr) return "";
-    const m = String(dateStr).match(/(\d{4})/);
-    return m ? m[1] : "";
-  }
-
-  function bestTitleGuess(doc){
-    return (
-      pickMeta(doc, [
-        'meta[property="og:title"]',
-        'meta[name="twitter:title"]',
-        'meta[name="citation_title"]'
-      ]) ||
-      (doc.querySelector("title")?.textContent || "").trim()
-    );
-  }
-
-  function bestAuthorGuess(doc){
-    const author = pickMeta(doc, [
-      'meta[name="author"]',
-      'meta[property="author"]',
-      'meta[property="article:author"]',
-      'meta[name="parsely-author"]',
-      'meta[name="citation_author"]'
-    ]);
-    if(author) return author;
-
-    const org = pickMeta(doc, [
-      'meta[property="og:site_name"]',
-      'meta[name="application-name"]',
-      'meta[name="dc.publisher"]',
-      'meta[name="publisher"]'
-    ]);
-    return org;
-  }
-
-  function bestDateGuess(doc){
-    return pickMeta(doc, [
-      'meta[property="article:published_time"]',
-      'meta[name="date"]',
-      'meta[name="dc.date"]',
-      'meta[name="dc.date.issued"]',
-      'meta[name="DCTERMS.issued"]',
-      'meta[name="citation_publication_date"]',
-      'meta[name="citation_date"]'
-    ]);
-  }
-
-  function bestContainerGuess(doc){
-    return pickMeta(doc, [
-      'meta[property="og:site_name"]',
-      'meta[name="citation_journal_title"]',
-      'meta[name="citation_publisher"]',
-      'meta[name="publisher"]',
-      'meta[name="dc.publisher"]'
-    ]);
-  }
-
-  function bestDoiGuess(doc, url){
+  function bestDoiFromHtml(doc, url){
     const doiMeta = pickMeta(doc, [
       'meta[name="citation_doi"]',
       'meta[name="dc.identifier"]',
       'meta[name="DC.Identifier"]'
     ]);
-    if(doiMeta && doiMeta.toLowerCase().includes("10.")) return doiMeta;
-
-    const m = String(url).match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
-    return m ? m[0] : "";
+    if(doiMeta && doiMeta.toLowerCase().includes("10.")) {
+      const m = doiMeta.match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
+      if(m) return m[0];
+    }
+    const m2 = String(url).match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
+    return m2 ? m2[0] : "";
   }
 
-  function inferCategoryFromUrl(url, doi){
-    const u = (url || "").toLowerCase();
-    if(doi || u.includes("doi.org") || u.includes("/doi/")) return "journal";
-    if(u.endsWith(".pdf") || u.includes("policy") || u.includes("guidance") || u.includes("report")) return "policy";
-    return "website";
+  async function fetchHtmlWithFallback(url){
+    try{
+      const res = await fetch(url, { mode: "cors" });
+      if(res.ok) return { text: await res.text(), method: "direct" };
+    } catch {}
+    try{
+      const prox = "https://r.jina.ai/http://" + url.replace(/^https?:\/\//i, "");
+      const res2 = await fetch(prox);
+      if(res2.ok) return { text: await res2.text(), method: "proxy" };
+    } catch {}
+    throw new Error("blocked");
   }
 
   function setAuthorsFromString(authorStr){
     const s = (authorStr || "").trim();
     if(!s) return;
 
-    const orgHint = /(nhs|university|college|department|ministry|government|council|organisation|organization|who|nice|nmc|cdc|pubmed|bmj|lancet)/i;
+    const orgHint = /(nhs|university|college|department|ministry|government|council|organisation|organization|who|nice|nmc|cdc|bmj|lancet)/i;
     if(orgHint.test(s) || s.length > 45){
-      authorsState = [{ name: s, initials: "" }];
-      renderAuthors();
+      setOrganisationAsAuthor(s);
       return;
     }
-
     const parts = s.split(/\s+and\s+|,|;/).map(x => x.trim()).filter(Boolean);
-    authorsState = parts.slice(0, 6).map(p => ({ name: p, initials: "" }));
+    authorsState = parts.slice(0, 10).map(p => ({ name: p, initials: "" }));
     renderAuthors();
   }
 
-  async function fetchHtmlWithFallback(url){
-    // 1) direct (may fail due to CORS)
-    try{
-      const res = await fetch(url, { mode: "cors" });
-      if(res.ok){
-        const text = await res.text();
-        return { text, method: "direct" };
-      }
-    } catch(e){}
-
-    // 2) fallback proxy (often bypasses CORS)
-    try{
-      const prox = "https://r.jina.ai/http://" + url.replace(/^https?:\/\//i, "");
-      const res2 = await fetch(prox);
-      if(res2.ok){
-        const text2 = await res2.text();
-        return { text: text2, method: "proxy" };
-      }
-    } catch(e){}
-
-    throw new Error("blocked");
+  function tryAutoPublishedDateFromString(dateRaw){
+    if(!dateRaw) return { year:"", pubDay:"", pubMonth:"" };
+    const d = new Date(dateRaw);
+    if(!isNaN(d)){
+      return {
+        year: String(d.getFullYear()),
+        pubDay: String(d.getDate()),
+        pubMonth: d.toLocaleString("en-GB", { month: "short" })
+      };
+    }
+    const m = String(dateRaw).match(/(\d{4})/);
+    return { year: m ? m[1] : "", pubDay:"", pubMonth:"" };
   }
 
-  async function autoFillFromUrl(){
-    const raw = el("urlAutofill").value || "";
-    const url = normaliseUrl(raw);
-    if(!url){
-      setStatus("Paste a link first.");
+  async function importFromURL(url){
+    setImportStatus("Importing from URL (scrape)…");
+    const { text, method } = await fetchHtmlWithFallback(url);
+    const doc = new DOMParser().parseFromString(text, "text/html");
+
+    const doi = bestDoiFromHtml(doc, url);
+    if(doi){
+      setImportStatus(`Found DOI (${doi}) — upgrading import via Crossref…`);
+      await importFromDOI(doi);
+      el("url").value = url;
+      setImportStatus("Imported via Crossref (best). Generate → Save.");
       return;
     }
 
-    setStatus("Fetching metadata…");
-    el("autoFillBtn").disabled = true;
+    const title =
+      pickMeta(doc, ['meta[property="og:title"]','meta[name="twitter:title"]','meta[name="citation_title"]']) ||
+      (doc.querySelector("title")?.textContent || "").trim();
 
+    const author =
+      pickMeta(doc, ['meta[name="author"]','meta[property="article:author"]','meta[name="parsely-author"]','meta[name="citation_author"]']) ||
+      pickMeta(doc, ['meta[property="og:site_name"]','meta[name="publisher"]','meta[name="dc.publisher"]']);
+
+    const dateRaw = pickMeta(doc, [
+      'meta[property="article:published_time"]',
+      'meta[name="date"]',
+      'meta[name="dc.date"]',
+      'meta[name="dc.date.issued"]',
+      'meta[name="DCTERMS.issued"]',
+      'meta[name="citation_publication_date"]'
+    ]);
+
+    const parsedDate = tryAutoPublishedDateFromString(dateRaw);
+
+    el("url").value = url;
+    if(title) el("title").value = title;
+
+    // Org detection + author fallback
+    const org = bestOrganisationFromSignals({ url, title, text });
+    if(author) setAuthorsFromString(author);
+    else if(org) setOrganisationAsAuthor(org);
+
+    if(parsedDate.year) el("year").value = parsedDate.year;
+    if(parsedDate.pubDay) el("pubDay").value = parsedDate.pubDay;
+    if(parsedDate.pubMonth) el("pubMonth").value = parsedDate.pubMonth;
+
+    const u = url.toLowerCase();
+    el("category").value = (u.endsWith(".pdf") || u.includes("guidance") || u.includes("policy") || u.includes("report")) ? "policy" : "website";
+
+    fillAccessedTodayIfBlank();
+    setImportStatus(`Imported by scraping (${method}). Published date auto-filled if available. Check → Generate → Save.`);
+  }
+
+  async function runImport(){
+    const raw = el("quickImport").value || "";
+    const detected = detectInputType(raw);
+
+    el("importBtn").disabled = true;
     try{
-      const { text, method } = await fetchHtmlWithFallback(url);
-      const doc = new DOMParser().parseFromString(text, "text/html");
-
-      const title = bestTitleGuess(doc);
-      const author = bestAuthorGuess(doc);
-      const date = bestDateGuess(doc);
-      const year = extractYearFromDate(date);
-      const container = bestContainerGuess(doc);
-      const doi = bestDoiGuess(doc, url);
-
-      if(title) el("title").value = title;
-      if(container && !safe(el("container").value)) el("container").value = container;
-      if(doi) el("doi").value = doi;
-      if(year) el("year").value = year;
-
-      el("url").value = url;
-
-      if(author) setAuthorsFromString(author);
-
-      const cat = inferCategoryFromUrl(url, doi);
-      el("category").value = cat;
-
-      // Fill accessed date as today if blank
-      const d = new Date();
-      const day = String(d.getDate());
-      const month = d.toLocaleString("en-GB", { month: "short" });
-      const yr = String(d.getFullYear());
-      if(!safe(el("accDay").value)) el("accDay").value = day;
-      if(!safe(el("accMonth").value)) el("accMonth").value = month;
-      if(!safe(el("accYear").value)) el("accYear").value = yr;
-
-      setStatus(`Auto-filled (${method}). Check author + year, then Generate → Save.`);
-    } catch(err){
-      setStatus("Couldn’t auto-fill from that site (blocked). You can still paste the URL and fill manually.");
+      if(detected.type === "doi") await importFromDOI(detected.value);
+      else if(detected.type === "pmid") await importFromPMID(detected.value);
+      else if(detected.type === "isbn") await importFromISBN(detected.value);
+      else if(detected.type === "url") await importFromURL(detected.value);
+      else setImportStatus("I couldn't recognise that. Paste a DOI, PMID, ISBN, or full URL.");
+    } catch(e){
+      setImportStatus("Import failed (site/API blocked). Try DOI/PMID/ISBN, or fill manually.");
     } finally{
-      el("autoFillBtn").disabled = false;
+      el("importBtn").disabled = false;
+    }
+  }
+  el("importBtn").addEventListener("click", runImport);
+
+  // ===================== PDF Drag & Drop Import =====================
+  let lastPdfName = "";
+
+  function resetPdfState(){
+    lastPdfName = "";
+    setPdfStatus("PDFs are not uploaded anywhere; only extracted details are stored in your browser.");
+  }
+  el("clearPdfBtn").addEventListener("click", resetPdfState);
+
+  el("pickPdfBtn").addEventListener("click", ()=> el("pdfInput").click());
+  el("pdfInput").addEventListener("change", async (e)=>{
+    const f = e.target.files?.[0];
+    if(f) await importFromPdfFile(f);
+    e.target.value = "";
+  });
+
+  const dropZone = el("dropZone");
+  ["dragenter","dragover"].forEach(evt=>{
+    dropZone.addEventListener(evt, (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add("drag");
+    });
+  });
+  ["dragleave","drop"].forEach(evt=>{
+    dropZone.addEventListener(evt, (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove("drag");
+    });
+  });
+  dropZone.addEventListener("drop", async (e)=>{
+    const file = e.dataTransfer?.files?.[0];
+    if(file && file.type === "application/pdf"){
+      await importFromPdfFile(file);
+    } else {
+      setPdfStatus("That wasn’t a PDF. Drop a .pdf file.");
+    }
+  });
+
+  function parsePdfDateToYMD(pdfDate){
+    // PDF date formats: "D:YYYYMMDDHHmmSSOHH'mm'" or variants
+    if(!pdfDate) return null;
+    const s = String(pdfDate).replace(/^D:/,"");
+    const y = s.slice(0,4);
+    const m = s.slice(4,6);
+    const d = s.slice(6,8);
+    if(!/^\d{4}$/.test(y)) return null;
+    const year = y;
+    const monthNum = /^\d{2}$/.test(m) ? Number(m) : 0;
+    const dayNum = /^\d{2}$/.test(d) ? Number(d) : 0;
+    const month = monthNum>=1 && monthNum<=12 ? new Date(2000, monthNum-1, 1).toLocaleString("en-GB",{month:"short"}) : "";
+    const day = dayNum>=1 && dayNum<=31 ? String(dayNum) : "";
+    return { year, pubMonth: month, pubDay: day };
+  }
+
+  async function extractFirstPageText(pdf){
+    try{
+      const page = await pdf.getPage(1);
+      const content = await page.getTextContent();
+      const strings = content.items.map(it => it.str).filter(Boolean);
+      // Keep it short but useful
+      const text = strings.join(" ").replace(/\s+/g," ").trim();
+      return text.slice(0, 4000);
+    } catch {
+      return "";
     }
   }
 
-  el("autoFillBtn").addEventListener("click", autoFillFromUrl);
+  function bestTitleFromPdf(metaTitle, firstPageText, fileName){
+    const cleanMeta = safe(metaTitle).replace(/\s+/g," ").trim();
+    if(cleanMeta && cleanMeta.toLowerCase() !== "untitled") return cleanMeta;
+
+    // Heuristic: first non-trivial line chunk from first page
+    const t = safe(firstPageText);
+    if(t){
+      // pick first ~12 words as "title-ish"
+      const words = t.split(/\s+/).slice(0, 18).join(" ");
+      if(words.length >= 10) return words;
+    }
+
+    // fallback: filename without extension
+    return safe(fileName).replace(/\.pdf$/i,"").replace(/[_-]+/g," ").trim();
+  }
+
+  async function importFromPdfFile(file){
+    lastPdfName = file.name || "";
+    setPdfStatus("Reading PDF…");
+    try{
+      // Read bytes
+      const buf = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: buf });
+      const pdf = await loadingTask.promise;
+
+      const meta = await pdf.getMetadata().catch(()=>({info:{}, metadata:null}));
+      const info = meta?.info || {};
+      const metaTitle = info.Title || "";
+      const metaAuthor = info.Author || "";
+      const metaSubject = info.Subject || "";
+      const created = info.CreationDate || info.ModDate || "";
+
+      const firstPageText = await extractFirstPageText(pdf);
+
+      // Decide category: PDFs are usually policy/report unless DOI found later
+      el("category").value = "policy";
+
+      // Title
+      const title = bestTitleFromPdf(metaTitle, firstPageText, file.name);
+      if(title) el("title").value = title;
+
+      // Try year / published date from CreationDate
+      const parsed = parsePdfDateToYMD(created);
+      if(parsed?.year) el("year").value = parsed.year;
+      if(parsed?.pubDay) el("pubDay").value = parsed.pubDay;
+      if(parsed?.pubMonth) el("pubMonth").value = parsed.pubMonth;
+
+      // Notes: include filename + subject
+      const noteBits = [];
+      noteBits.push(`PDF file: ${file.name}`);
+      if(metaSubject) noteBits.push(`PDF subject: ${metaSubject}`);
+      // Only append if notes empty to avoid annoying overwrites
+      if(!safe(el("notes").value) && noteBits.length) el("notes").value = noteBits.join("\n");
+
+      // Organisation/author detection:
+      // 1) URL if user has one in field already
+      // 2) PDF author metadata if it looks like an org
+      // 3) First page text scan
+      const url = safe(el("url").value);
+      const orgFromSignals = bestOrganisationFromSignals({ url, title, text: firstPageText });
+
+      const metaAuthorLooksOrg = metaAuthor && /(nhs|nice|nmc|government|gov\.uk|who|cdc|council|college|university|department|agency)/i.test(metaAuthor);
+
+      if(metaAuthorLooksOrg){
+        setOrganisationAsAuthor(metaAuthor);
+      } else if(orgFromSignals){
+        setOrganisationAsAuthor(orgFromSignals);
+      } else if(metaAuthor){
+        // If it's a person, don't overreach—put it in authors as surname-only
+        setAuthorsFromString(metaAuthor);
+      }
+
+      fillAccessedTodayIfBlank();
+
+      setPdfStatus(`Loaded: ${file.name} ✅ Metadata extracted. Check fields → Generate → Save.`);
+    } catch(err){
+      setPdfStatus("Couldn’t read that PDF (it may be encrypted or corrupted). Try a different file.");
+    }
+  }
+
+  // ===================== Buttons & new/reset =====================
+  el("newBtn").addEventListener("click", ()=> setForm(null));
+
+  // ===================== Tabs + render helpers =====================
+  function renderMulti(){ /* defined below */ }
+  function renderBib(){ /* defined below */ }
+
+  // ===================== Multi + Bib (definitions need functions above) =====================
+  // (We already defined renderMulti/renderBib earlier — re-declare properly here)
+
+  function renderMulti(){
+    const items = loadAll().slice().sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+    const box = el("multiList");
+    box.innerHTML = "";
+
+    if(items.length === 0){
+      box.innerHTML = `<div class="muted">No saved sources in this library yet.</div>`;
+      return;
+    }
+
+    for(const it of items){
+      const id = it.id;
+      const checked = multiSelected.has(id);
+      const authorLabel = formatAuthorsInText(it.authors);
+      const year = (safe(it.year) || "no date") + (safe(it.yearSuffix) ? it.yearSuffix : "");
+      const tiny = `${authorLabel}, ${year}`;
+
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <div class="selectRow">
+          <input type="checkbox" data-mid="${id}" ${checked ? "checked":""} />
+          <div>
+            <h3 style="margin:0">${escapeHtml(it.title || "Untitled")} <span class="pill" style="margin-left:8px">${humanCat(it.category)}</span></h3>
+            <div class="meta"><span>${escapeHtml(tiny)}</span>${it.secondary ? `<span class="pill">Secondary</span>`:""}</div>
+          </div>
+        </div>
+      `;
+      box.appendChild(row);
+    }
+
+    box.querySelectorAll("input[type='checkbox'][data-mid]").forEach(cb=>{
+      cb.addEventListener("change", ()=>{
+        const id = cb.getAttribute("data-mid");
+        if(cb.checked) multiSelected.add(id); else multiSelected.delete(id);
+      });
+    });
+  }
+
+  // ===================== Buttons for multi =====================
+  el("buildMultiBtn").addEventListener("click", buildMulti);
+  el("copyMultiBtn").addEventListener("click", ()=> copyText(el("outMulti").textContent));
+  el("clearMultiSelectionBtn").addEventListener("click", ()=>{
+    multiSelected.clear();
+    renderMulti();
+    buildMulti();
+  });
+
+  // ===================== Bib render already wired in Word section =====================
+  // (renderBib is defined earlier in the Word export block)
+
+  // ===================== Library item actions =====================
+  // Already wired in renderLibrary
 
   // ===================== Init =====================
   (function init(){
     const current = ensureLibraryExists();
-    // authors UI
     renderAuthors();
-    // initial form
     setForm(null);
 
-    // library select
-    function refreshLibrarySelect(){
-      const sel = el("librarySelect");
-      const libs = getLibList().map(sanitizeLibName).filter(Boolean).sort((a,b)=>a.localeCompare(b));
-      const cur = getCurrentLib();
-
-      sel.innerHTML = "";
-      for(const name of libs){
-        const opt = document.createElement("option");
-        opt.value = name;
-        opt.textContent = name;
-        if(name === cur) opt.selected = true;
-        sel.appendChild(opt);
-      }
-    }
     refreshLibrarySelect();
-
-    // switch library now
-    function switchLibrary(name){
-      const n = sanitizeLibName(name);
-      if(!n) return;
-      setCurrentLib(n);
-      const libs = getLibList().map(sanitizeLibName).filter(Boolean);
-      if(!libs.includes(n)){
-        libs.push(n);
-        setLibList(libs);
-      }
-      multiSelected.clear();
-      setForm(null);
-      refreshLibrarySelect();
-      renderAllPanels();
-    }
-
-    // wire select + buttons
-    el("librarySelect").addEventListener("change", (e)=> switchLibrary(e.target.value));
-    el("newLibraryBtn").addEventListener("click", ()=>{
-      const name = sanitizeLibName(prompt("New library name (e.g., Sam, Dissertation refs):", "") || "");
-      if(!name) return;
-      switchLibrary(name);
-    });
-    el("deleteLibraryBtn").addEventListener("click", ()=>{
-      const cur = getCurrentLib();
-      if(!cur) return;
-      if(!confirm(`Delete the entire library "${cur}"? This cannot be undone.`)) return;
-
-      localStorage.removeItem(KEY_PREFIX + cur);
-
-      let libs = getLibList().map(sanitizeLibName).filter(Boolean).filter(x=>x!==cur);
-      setLibList(libs);
-
-      const next = libs[0] || "My Library";
-      setCurrentLib(next);
-      if(!libs.length) setLibList([next]);
-
-      multiSelected.clear();
-      setForm(null);
-      refreshLibrarySelect();
-      renderAllPanels();
-    });
-
-    // set current library
     switchLibrary(current);
+    renderAllPanels();
+    resetPdfState();
   })();
 </script>
 </body>
 </html>
-
